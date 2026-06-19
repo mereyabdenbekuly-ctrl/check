@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lt(locale, 'Проверка OpenAI / GPT relay · Clodex', 'OpenAI / GPT relay check · Clodex', 'OpenAI / GPT relay 检测 · Clodex') }}{% endblock %}
+{% block description %}{{ lt(locale, 'Проверка OpenAI-compatible relay: Chat Completions, function calling, structured output, stream consistency и usage fingerprints.', 'Check OpenAI-compatible relays: Chat Completions, function calling, structured output, streaming consistency, and usage fingerprints.', '检测 OpenAI-compatible relay：Chat Completions、function calling、structured output、stream 一致性和 usage 指纹。') }}{% endblock %}
+{% block canonical %}https://check.clodex.xyz/openai{% endblock %}
+{% block og_url %}https://check.clodex.xyz/openai{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1>{{ lt(locale, 'Проверка OpenAI / GPT relay', 'OpenAI / GPT relay check', 'OpenAI / GPT relay 检测') }}</h1>
+  <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
+    <strong>Clodex</strong>
+    {{ lt(locale,
+      'проверяет, похож ли relay на настоящий OpenAI Chat Completions endpoint, и ищет следы переупаковки из Claude / Gemini backend.',
+      'checks whether a relay behaves like a real OpenAI Chat Completions endpoint and looks for fingerprints of Claude / Gemini backend rewrapping.',
+      '检查 relay 是否符合 OpenAI Chat Completions 端点行为，并识别 Claude / Gemini 后端重新包装痕迹。') }}
+  </p>
+</section>
+
+<section class="card alert-card">
+  <strong>{{ lt(locale, 'Уровень поведения / протокола:', 'Behavior / protocol level:', '行为/协议级验证：') }}</strong>
+  {{ lt(locale,
+    'OpenAI responses не содержат криптографическую подпись уровня Claude, поэтому это не математическое доказательство идентичности модели.',
+    'OpenAI responses do not expose a Claude-like cryptographic signature, so this is not a mathematical proof of model identity.',
+    'OpenAI 响应没有 Claude 那样的加密签名，因此这里不是数学级模型真伪证明。') }}
+</section>
+
+<section class="card form-card">
+  <form id="detect-form" data-endpoint="/api/detect/openai" autocomplete="off">
+    <div class="field">
+      <label for="base_url">{{ lt(locale, 'Relay base URL', 'Relay base URL', 'relay 接口地址') }}</label>
+      <input type="url" id="base_url" name="base_url" required placeholder="https://api.example.com/v1" />
+      <p class="hint">{{ lt(locale, 'Корневой OpenAI-compatible URL, например', 'OpenAI-compatible root URL, e.g.', 'OpenAI-compatible 根 URL，例如') }} <code>https://api.example.com</code> {{ lt(locale, 'или', 'or', '或') }} <code>https://api.example.com/v1</code>.</p>
+    </div>
+    <div class="field">
+      <label for="api_key">{{ lt(locale, 'API key', 'API key', 'API 密钥') }}</label>
+      <input type="password" id="api_key" name="api_key" required placeholder="sk-..." minlength="8" />
+      <p class="hint">{{ lt(locale, 'Используется только для этой проверки; не пишется в отчёты и не сохраняется.', 'Used only for this check; not written to reports or persisted.', '仅用于本次检测，不写入报告、不持久化。') }}</p>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="model">{{ lt(locale, 'Модель', 'Target model', '目标模型') }}</label>
+        <div class="combo">
+          <input type="text" id="model" name="model" required value="gpt-5.5" autocomplete="off" placeholder="gpt-5.5" maxlength="200" />
+          <ul class="combo-list" id="model-list" hidden>
+            {% for m in models %}
+            <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mode">{{ lt(locale, 'Глубина проверки', 'Check depth', '检测深度') }}</label>
+        <select id="mode" name="mode">
+          <option value="quick">{{ lt(locale, 'Быстрая (~15 сек, 3 проверки)', 'Quick (~15s, 3 checks)', '快速 (~15 秒,3 项)') }}</option>
+          <option value="standard" selected>{{ lt(locale, 'Стандарт (~40 сек, 6 проверок)', 'Standard (~40s, 6 checks)', '标准 (~40 秒,6 项)') }}</option>
+          <option value="full">{{ lt(locale, 'Полная (~70 сек, все проверки)', 'Full (~70s, all checks)', '完整 (~70 秒,全部检测)') }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
+      <label for="include_long_context">
+        <strong>{{ lt(locale, 'Проверка long context', 'Long-context check', '长上下文真实性') }}</strong>
+        <span class="checkbox-hint">{{ lt(locale, 'Дополнительные 32k -> 100k -> 200k probes. Может стоить дороже и оплачивается вашим API key.', 'Extra 32k -> 100k -> 200k probes. This can cost more and is paid by your API key.', '额外发送 32k -> 100k -> 200k 探针，成本更高，由你的 API key 支付。') }}</span>
+      </label>
+    </div>
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context_extreme" name="include_long_context_extreme" value="true" />
+      <label for="include_long_context_extreme">
+        <strong>{{ lt(locale, 'Extreme context', 'Extreme context', '极限 context') }}</strong>
+        <span class="checkbox-hint">{{ lt(locale, 'Проверяет ближе к заявленному лимиту модели. Для больших моделей может быть дорогим.', 'Tests closer to the advertised model limit. Can be expensive for large models.', '接近模型宣称上限检测，大模型成本可能很高。') }}</span>
+      </label>
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary">{{ lt(locale, 'Начать проверку', 'Start check', '开始检测') }}</button>
+    <p class="form-error" id="form-error" hidden></p>
+  </form>
+</section>
+
+<section class="features">
+  <div class="feature"><h3>Chat Completions</h3><p>{{ lt(locale, 'Проверяет ids, object types, choices, finish_reason и форму usage.', 'Checks ids, object types, choices, finish_reason and usage shape.', '检查 id、object、choices、finish_reason 和 usage 形状。') }}</p></div>
+  <div class="feature"><h3>{{ lt(locale, 'Целостность возможностей', 'Capability integrity', '能力完整性') }}</h3><p>{{ lt(locale, 'Запускает tool call и JSON schema probes, чтобы поймать упрощённые адаптеры.', 'Runs tool call and JSON schema probes to catch simplified adapters.', '运行 tool call 和 JSON schema 探针，识别简化适配层。') }}</p></div>
+  <div class="feature"><h3>{{ lt(locale, 'Usage fingerprints', 'Usage fingerprints', 'usage 指纹') }}</h3><p>{{ lt(locale, 'Отмечает подозрительные Claude / Gemini поля внутри OpenAI-shaped responses.', 'Flags suspicious Claude / Gemini fields inside OpenAI-shaped responses.', '标记 OpenAI 形状响应中可疑的 Claude / Gemini 字段。') }}</p></div>
+</section>
+
+<section class="faq" id="faq">
+  <h2>{{ lt(locale, 'FAQ', 'FAQ', '常见问题') }}</h2>
+  <details class="faq-item" open>
+    <summary>{{ lt(locale, 'Можно доказать подлинность GPT криптографически?', 'Can this prove a GPT model is genuine?', '能证明 GPT 模型一定真实吗？') }}</summary>
+    <div class="faq-body"><p>{{ lt(locale, 'Не криптографически. Проверяется protocol behavior и частые fingerprints конвертации backend-а.', 'Not cryptographically. It verifies protocol behavior and catches common backend-conversion fingerprints.', '不能达到加密级证明；它验证协议行为，并捕捉常见后端转换指纹。') }}</p></div>
+  </details>
+  <details class="faq-item">
+    <summary>{{ lt(locale, 'Почему 75 баллов всё равно могут быть риском?', 'Why can a 75 score still look risky?', '为什么 75 分仍然可能是风险？') }}</summary>
+    <div class="faq-body"><p>{{ lt(locale, 'Critical issues могут понизить verdict, даже если численный score выглядит проходным.', 'Critical issues can downgrade the verdict even when the numeric score is passable.', '即使分数过线，只要存在 critical issue，整体判定也会降级。') }}</p></div>
+  </details>
+  <p class="faq-more">{{ lt(locale, 'Больше вопросов про OpenAI relay:', 'More OpenAI relay questions:', '更多 OpenAI relay 问题：') }} <a href="{{ with_lang('/faq#openai', locale) }}">/faq#openai</a></p>
+</section>
+{% endblock %}

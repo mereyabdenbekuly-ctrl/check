@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="{{ html_lang or 'ru-RU' }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ ui.site_name }} · {{ ui.site_tagline }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ ui.footer_desc }}{% endblock %}" />
+  <meta name="keywords" content="проверка AI API, проверка Claude API, проверка GPT API, проверка Gemini API, API relay, API прокси, подлинность модели, Claude thinking signature" />
+  <meta name="robots" content="index,follow" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Clodex Check" />
+  <meta property="og:title" content="{% block og_title %}{{ ui.site_name }} · {{ ui.site_tagline }}{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}{{ ui.footer_desc }}{% endblock %}" />
+  <meta property="og:url" content="{% block og_url %}https://check.clodex.xyz/{% endblock %}" />
+  <meta property="og:locale" content="{{ og_locale or 'ru_RU' }}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{% block twitter_title %}{{ ui.site_name }} · {{ ui.site_tagline }}{% endblock %}" />
+  <meta name="twitter:description" content="{% block twitter_description %}{{ ui.footer_desc }}{% endblock %}" />
+  {% block og_image %}
+  <meta property="og:image" content="https://check.clodex.xyz/static/clodex-logo.png" />
+  <meta name="twitter:image" content="https://check.clodex.xyz/static/clodex-logo.png" />
+  {% endblock %}
+  <link rel="canonical" href="{% block canonical %}https://check.clodex.xyz/{% endblock %}" />
+  <link rel="stylesheet" href="/static/style.css?v=20260618-logo-bg-1" />
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  {% block head_extra %}{% endblock %}
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-LWRPQF2182"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-LWRPQF2182');
+  </script>
+  <script>
+    window.__veridropUi = {{ ui | tojson }};
+    window.__veridropLocale = {{ locale | tojson }};
+    window.__veridropI18n = {{ {
+      "menu_open": lt(locale, "Открыть меню", "Open menu", "打开菜单"),
+      "menu_close": lt(locale, "Закрыть меню", "Close menu", "关闭菜单"),
+      "copied": lt(locale, "Скопировано!", "Copied!", "已复制!"),
+      "share": lt(locale, "Поделиться", "Share", "分享"),
+      "download": lt(locale, "Скачать JPG", "Download JPG", "下载 JPG"),
+      "detecting": lt(locale, "Проверяем…", "Detecting…", "正在检测中…"),
+      "queued": lt(locale, "В очереди…", "Queued…", "排队中…"),
+      "done": lt(locale, "Готово, загружаем отчёт…", "Done, loading report…", "检测完成,正在加载报告…"),
+      "failed": lt(locale, "Проверка не удалась", "Detection failed", "检测失败"),
+      "unknown_error": lt(locale, "Неизвестная ошибка", "Unknown error", "未知错误"),
+      "poll_failed": lt(locale, "Сбой опроса", "Polling failed", "轮询失败"),
+      "submit_failed": lt(locale, "Ошибка отправки", "Submission failed", "提交失败"),
+      "open_menu": lt(locale, "Открыть меню", "Open menu", "打开菜单"),
+      "close_menu": lt(locale, "Закрыть меню", "Close menu", "关闭菜单"),
+      "notice": lt(locale, "Данные со страницы {label} подставлены, повторяем проверку...", "Loaded credentials from {label} page, reprobing...", "已从 {label} 页面带入凭据,正在重新探测..."),
+      "probe_direct_try": lt(locale, "указанная модель будет проверена напрямую", "the entered model will be tried directly", "你填的模型会被直接尝试"),
+      "probe_can_continue": lt(locale, "проверку можно продолжить", "detection can continue", "检测可正常进行"),
+      "models_none_for_protocol": lt(locale, "У relay нет моделей {label}", "This relay has no {label} models", "该relay没有任何 {label} 模型"),
+      "models_seen_other_protocol": lt(locale, "Найдено {total} моделей, но они относятся к другому протоколу.", "Found {total} models, but none match this check protocol.", "已识别 {total} 个模型,但都不属于本检测协议。"),
+      "usable_count": lt(locale, "{count} доступно", "{count} usable", "{count} 个可用"),
+      "models_usable_for_check": lt(locale, "{total} моделей всего, {count} можно проверять здесь", "{total} available models, {count} usable for this check", "{total} 个可用模型,其中 {count} 个可用于本检测"),
+      "model_dead_title": lt(locale, "Модель недоступна на этом relay", "This model is not available on the relay", "该模型在relay实际不可用"),
+      "upstream_rejected": lt(locale, "верхний провайдер отклонил запрос", "upstream rejected the request", "上游拒绝"),
+      "swap_retry": lt(locale, "Заменить на {model} и повторить", "Switch to {model} and retry", "换成 {model} 重试"),
+      "force_submit": lt(locale, "Понимаю, отправить принудительно", "I understand, force submit", "我知道,强制提交"),
+      "force_submit_title": lt(locale, "Preflight иногда ошибается. При принудительной отправке недоступная модель даст ошибочный отчёт.", "Preflight can occasionally be wrong. If the model is truly dead, forced detection will produce an error report.", "preflight 偶尔会误判(例如 max_tokens 太小被代理拒)。强制提交后,如果模型真挂了,检测会以错误结果呈现。"),
+      "start_detection": lt(locale, "Начать проверку", "Start check", "开始检测"),
+    } | tojson }};
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="/">
+        <img class="brand-mark-img" src="/static/clodex-logo.png" alt="Clodex" />
+        <span>{{ ui.site_name }}</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-label="{{ ui.menu_open }}"
+        aria-expanded="false"
+        aria-controls="site-nav">
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+      </button>
+      <nav class="site-nav" id="site-nav">
+        <div class="nav-links">
+          <a href="{{ with_lang('/', locale) }}">{{ ui.nav_home }}</a>
+          <a href="{{ with_lang('/claude', locale) }}">{{ ui.nav_claude }}</a>
+          <a href="{{ with_lang('/openai', locale) }}">{{ ui.nav_openai }}</a>
+          <a href="{{ with_lang('/gemini', locale) }}">{{ ui.nav_gemini }}</a>
+          <a href="{{ with_lang('/leaderboard', locale) }}">{{ ui.nav_leaderboard }}</a>
+          <a href="{{ with_lang('/faq', locale) }}">{{ ui.nav_faq }}</a>
+        </div>
+        <span class="nav-lang" aria-label="{{ ui.lang_switch }}">
+          <a href="{{ with_lang(request.url, 'ru') }}" class="{% if locale == 'ru' %}active{% endif %}" aria-current="{% if locale == 'ru' %}true{% else %}false{% endif %}">RU</a>
+          <a href="{{ with_lang(request.url, 'en') }}" class="{% if locale == 'en' %}active{% endif %}" aria-current="{% if locale == 'en' %}true{% else %}false{% endif %}">EN</a>
+          <a href="{{ with_lang(request.url, 'zh') }}" class="{% if locale == 'zh' %}active{% endif %}" aria-current="{% if locale == 'zh' %}true{% else %}false{% endif %}">CN</a>
+        </span>
+        <a class="nav-github" href="https://github.com/mereyabdenbekuly-ctrl/check"
+          target="_blank" rel="noopener noreferrer"
+          aria-label="{{ ui.footer_source }}"
+          title="{{ ui.footer_source }} · AGPL-3.0">
+          <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+        </a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div class="footer-col footer-col-tagline">
+        <p class="footer-tagline">
+          <strong>{{ ui.site_name }}</strong> · {{ ui.site_tagline }}
+        </p>
+        <p class="footer-desc">
+          {{ ui.footer_desc }}
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>{{ ui.footer_projects }}</h4>
+        <ul>
+          <li><a href="https://github.com/mereyabdenbekuly-ctrl/check" target="_blank" rel="noopener">{{ ui.footer_source }}</a></li>
+          <li><a href="https://github.com/mereyabdenbekuly-ctrl/check/blob/main/LICENSE" target="_blank" rel="noopener">License (AGPL-3.0)</a></li>
+          <li><a href="https://github.com/mereyabdenbekuly-ctrl/check/blob/main/SECURITY.md" target="_blank" rel="noopener">{{ ui.footer_security }}</a></li>
+          <li><a href="https://github.com/mereyabdenbekuly-ctrl/check/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">{{ ui.footer_contrib }}</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>{{ ui.footer_tools }}</h4>
+        <ul>
+          <li><a href="/claude">{{ ui.nav_claude }}</a></li>
+          <li><a href="/openai">{{ ui.nav_openai }}</a></li>
+          <li><a href="/gemini">{{ ui.nav_gemini }}</a></li>
+          <li><a href="/leaderboard">{{ ui.nav_leaderboard }}</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>{{ ui.footer_resources }}</h4>
+        <ul>
+          <li><a href="/faq">{{ ui.footer_faq }}</a></li>
+          <li><a href="/leaderboard">{{ ui.footer_rank }}</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-copyright muted small">
+      © {{ ui.site_name }} · {{ ui.footer_copy }}
+      <a class="footer-copyright-github" href="https://github.com/mereyabdenbekuly-ctrl/check"
+        target="_blank" rel="noopener noreferrer"
+        aria-label="{{ ui.footer_source }}"
+        title="mereyabdenbekuly-ctrl/check · AGPL-3.0">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+        </svg>
+        <span>mereyabdenbekuly-ctrl/check</span>
+      </a>
+    </p>
+  </footer>
+  <script src="/static/app.js?v=20260618-ru-lang-2" defer></script>
+</body>
+</html>

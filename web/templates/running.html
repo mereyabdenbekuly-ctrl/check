@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lt(locale, 'Проверка идёт · Clodex', 'Detection in progress · Clodex', '检测进行中 · Clodex') }}{% endblock %}
+
+{% block content %}
+<section class="card running-card" data-job-id="{{ job_id }}">
+  <div class="spinner" aria-hidden="true"></div>
+  <h2 id="status-headline">{{ lt(locale, 'Проверка идёт…', 'Detecting…', '正在检测中…') }}</h2>
+  <p class="muted">
+    {{ lt(locale, 'Целевая модель', 'Target model', '目标模型') }}:<code>{{ job.target_model }}</code> ·
+    {{ lt(locale, 'Глубина', 'Depth', '检测深度') }} <code>{{ job.mode }}</code><br/>
+    relay:<code>{{ job.base_url }}</code>
+  </p>
+  <p class="muted">
+    {{ lt(locale, 'Полный режим параллельно делает 13 запросов и обычно завершается за 90 секунд. Страница обновится автоматически, либо можно сохранить ссылку и вернуться позже.',
+            'Full mode runs 13 requests in parallel and usually finishes within 90 seconds. This page refreshes automatically; you can also bookmark it and come back later.',
+            '完整模式会并行发起 13 次接口请求,通常 90 秒内完成。本页面会自动刷新——你也可以保存本网址稍后再来查看结果。') }}
+  </p>
+  <p class="form-error" id="run-error" hidden></p>
+</section>
+
+<script>
+(function () {
+  const id = {{ job_id|tojson }};
+  const headline = document.getElementById('status-headline');
+  const errBox = document.getElementById('run-error');
+  let tries = 0;
+
+  async function poll() {
+    tries++;
+    try {
+      const r = await fetch('/api/status/' + id, {cache: 'no-store'});
+      if (!r.ok) throw new Error('status ' + r.status);
+      const j = await r.json();
+      if (j.status === 'done') {
+        headline.textContent = {{ lt(locale, 'Готово, загружаем отчёт…', 'Done, loading report…', '检测完成,正在加载报告…') | tojson }};
+        location.reload();
+        return;
+      }
+      if (j.status === 'error') {
+        headline.textContent = {{ lt(locale, 'Проверка не удалась', 'Detection failed', '检测失败') | tojson }};
+        errBox.hidden = false;
+        errBox.textContent = j.error || {{ lt(locale, '未知错误', 'Unknown error', '未知错误') | tojson }};
+        return;
+      }
+      if (j.status === 'running') {
+        headline.textContent = {{ lt(locale, 'Проверка идёт…', 'Detecting…', '正在检测中…') | tojson }};
+      } else {
+        headline.textContent = {{ lt(locale, 'В очереди…', 'Queued…', '排队中…') | tojson }};
+      }
+    } catch (e) {
+      if (tries > 60) {
+        errBox.hidden = false;
+        errBox.textContent = {{ lt(locale, 'Сбой опроса:', 'Polling failed:', '轮询失败:') | tojson }} + e.message;
+        return;
+      }
+    }
+    setTimeout(poll, 2500);
+  }
+  poll();
+})();
+</script>
+{% endblock %}

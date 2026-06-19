@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lt(locale, 'Clodex Check — проверка AI API: Claude / GPT / Gemini', 'Clodex Check — AI API authenticity checker: Claude / GPT / Gemini', 'Clodex Check · AI API 真伪检测：Claude / GPT / Gemini') }}{% endblock %}
+{% block description %}{{ lt(locale, 'Бесплатная проверка AI API-переходников и прокси: настоящий ли Claude, GPT или Gemini, не подменяется ли модель, корректны ли usage, stream и протокол. API-ключ не сохраняется.', 'Free AI API relay and proxy checker: verify whether Claude, GPT, or Gemini is authentic, whether the model is swapped, and whether usage, stream, and protocol fields are correct. API keys are not retained.', '免费检测 AI API 中转和代理：判断 Claude、GPT、Gemini 是否真实透传，模型是否被替换，usage、stream 和协议是否正确。API key 不留存。') }}{% endblock %}
+{% block og_title %}{{ lt(locale, 'Clodex Check — проверка AI API: Claude / GPT / Gemini', 'Clodex Check — AI API authenticity checker: Claude / GPT / Gemini', 'Clodex Check · AI API 真假检测：Claude / GPT / Gemini') }}{% endblock %}
+{% block og_description %}{{ lt(locale, 'Проверяем API relay и прокси: подлинность Claude / GPT / Gemini, usage, stream, протокол и shareable-отчёты. Без регистрации, ключ не сохраняется.', 'Check API relays and proxies: Claude / GPT / Gemini authenticity, usage, stream, protocol, and shareable reports. No signup, no key retention.', '检测 API relay 和代理：Claude / GPT / Gemini 真伪、usage、stream、协议和可分享报告。无需注册，key 不留存。') }}{% endblock %}
+{% block canonical %}{{ canonical_url or 'https://check.clodex.xyz/' }}{% endblock %}
+{% block og_url %}{{ canonical_url or 'https://check.clodex.xyz/' }}{% endblock %}
+{% block twitter_title %}{{ self.og_title() }}{% endblock %}
+{% block twitter_description %}{{ self.og_description() }}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Clodex Check",
+  "alternateName": "Проверка AI API relay",
+  "url": "https://check.clodex.xyz/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web",
+  "inLanguage": "ru-RU",
+  "description": "Бесплатная проверка AI API-переходников и прокси: настоящий ли Claude, GPT или Gemini, не подменяется ли модель, корректны ли usage, stream и протокол.",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Clodex",
+    "url": "https://check.clodex.xyz/"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="hub-hero">
+  <h1>{{ lt(locale, 'Проверка подлинности AI API relay', 'AI API relay authenticity check', 'AI API relay 真伪检测') }}</h1>
+  <p class="answer-capsule">
+    <strong>Clodex</strong>
+    {{ lt(locale,
+      'проверяет, действительно ли relay передаёт Claude / GPT / Gemini, или тихо подменяет запрос более дешёвым бэкендом.',
+      'checks whether a relay truly passes through Claude / GPT / Gemini or quietly swaps the request to a cheaper backend.',
+      '检查 relay 是否真实透传 Claude / GPT / Gemini，还是偷偷换成更便宜的后端。') }}
+    {{ lt(locale,
+      'Для Claude используется server-side thinking signature; для OpenAI и Gemini — протокольные и usage-проверки.',
+      'Claude uses server-side thinking signatures; OpenAI and Gemini use protocol and usage-field checks.',
+      'Claude 使用服务端 thinking signature；OpenAI 和 Gemini 使用协议与 usage 字段检测。') }}
+  </p>
+  <p class="hub-meta">
+    {{ lt(locale, '3 протокола', '3 protocols', '3 个协议') }} ·
+    {{ lt(locale, 'до 12 независимых проверок', 'up to 12 independent checks', '最多 12 项独立检测') }} ·
+    {{ lt(locale, 'отчёт за 30-75 секунд', 'report in 30-75 seconds', '30-75 秒出报告') }} ·
+    {{ lt(locale, 'постоянная ссылка и JPG', 'permanent URL and JPG', '永久 URL 与 JPG') }}
+  </p>
+</section>
+
+<section class="trust-strip" aria-label="{{ lt(locale, 'Open source и доверие', 'Open source and trust', '开源与信任') }}">
+  <div class="trust-strip-head">
+    <h2>{{ lt(locale, '100% open source · scoring можно проверить построчно', '100% open source · scoring is auditable line by line', '100% 开源 · 评分算法可逐行审计') }}</h2>
+    <p>
+      {{ lt(locale,
+        'Clodex временно использует ваш API key только для проверки. Поэтому scoring, обработка ключей и безопасность должны быть проверяемыми в коде.',
+        'Clodex temporarily uses your API key only for the check, so scoring, key handling, and security must be verifiable in code.',
+        'Clodex 仅在检测期间临时使用 API key，因此评分、key 处理和安全承诺都必须能在代码里验证。') }}
+    </p>
+  </div>
+  <div class="trust-cards">
+    <article class="trust-card">
+      <div class="trust-icon">S</div>
+      <h3>{{ lt(locale, 'Scoring открыт', 'Scoring is public', '评分算法公开') }}</h3>
+      <p>{{ lt(locale, 'Формулы, detector-ы и ranking logic опубликованы. Нет чёрного ящика.', 'Detector logic, formulas, and ranking are public. No black box.', 'Detector 逻辑、公式和排行榜算法公开，无黑盒。') }}</p>
+      <a href="https://github.com/mereyabdenbekuly-ctrl/check/tree/main/src/relay_detector" target="_blank" rel="noopener" class="trust-link">{{ lt(locale, 'Смотреть detector source ->', 'View detector source ->', '查看检测器源码 ->') }}</a>
+    </article>
+    <article class="trust-card">
+      <div class="trust-icon">K</div>
+      <h3>{{ lt(locale, 'API key не пишется на диск', 'API keys never hit disk', 'API key 不落盘') }}</h3>
+      <p>{{ lt(locale, 'Ключ живёт в памяти job-а, не попадает в report JSON, логи или базу. В отчёте показывается только маска.', 'Keys live in job memory only and are not written to report JSON, logs, or a database. Reports show only a masked key.', 'key 只存在 job 内存里，不写入 report JSON、日志或数据库；报告只显示脱敏版本。') }}</p>
+      <a href="https://github.com/mereyabdenbekuly-ctrl/check/blob/main/SECURITY.md" target="_blank" rel="noopener" class="trust-link">{{ lt(locale, 'Security policy ->', 'Security policy ->', '安全策略 ->') }}</a>
+    </article>
+    <article class="trust-card">
+      <div class="trust-icon">H</div>
+      <h3>{{ lt(locale, 'Можно self-host', 'Fully self-hostable', '支持自托管') }}</h3>
+      <p>{{ lt(locale, 'Не доверяете публичному сервису? Запустите код у себя, и ключи не покинут вашу сеть.', 'Do not trust the public service? Run the code yourself so keys never leave your network.', '不放心公网服务？可以自托管，key 不离开你的网络。') }}</p>
+      <a href="https://github.com/mereyabdenbekuly-ctrl/check#readme" target="_blank" rel="noopener" class="trust-link">{{ lt(locale, 'Self-hosting guide ->', 'Self-hosting guide ->', '自托管指南 ->') }}</a>
+    </article>
+  </div>
+</section>
+
+<section class="protocol-grid">
+  <article class="protocol-card protocol-card-primary">
+    <div class="protocol-top">
+      <span class="protocol-kicker">Claude</span>
+      <span class="tier-badge tier-crypto">{{ lt(locale, 'Криптографический сигнал', 'Cryptographic signal', '加密级信号') }}</span>
+    </div>
+    <h2>{{ lt(locale, 'Claude API relay check', 'Claude API relay check', 'Claude API relay 检测') }}</h2>
+    <p>{{ lt(locale, 'Проверяет thinking signature, protocol shape, tool use, structured output, stream consistency, usage и long context.', 'Checks thinking signature, protocol shape, tool use, structured output, streaming consistency, usage, and long context.', '检测 thinking signature、协议形状、tool use、structured output、stream 一致性、usage 和长上下文。') }}</p>
+    <a class="btn btn-primary protocol-action" href="{{ with_lang('/claude', locale) }}">{{ lt(locale, 'Проверить Claude relay ->', 'Check Claude relay ->', '检测 Claude relay ->') }}</a>
+  </article>
+  <article class="protocol-card">
+    <div class="protocol-top">
+      <span class="protocol-kicker">OpenAI</span>
+      <span class="tier-badge tier-behavioral">{{ lt(locale, 'Поведение / протокол', 'Behavior/protocol level', '行为/协议级') }}</span>
+    </div>
+    <h2>{{ lt(locale, 'OpenAI / GPT relay check', 'OpenAI / GPT relay check', 'OpenAI / GPT relay 检测') }}</h2>
+    <p>{{ lt(locale, 'Ищет нарушения Chat Completions и следы того, что GPT-запросы переупакованы из Claude или Gemini backend.', 'Looks for Chat Completions issues and fingerprints that GPT requests are being rewrapped from Claude or Gemini backends.', '检测 Chat Completions 协议问题，以及 GPT 请求被 Claude 或 Gemini 后端重新包装的痕迹。') }}</p>
+    <a class="btn btn-ghost protocol-action" href="{{ with_lang('/openai', locale) }}">{{ lt(locale, 'Проверить OpenAI relay ->', 'Check OpenAI relay ->', '检测 OpenAI relay ->') }}</a>
+  </article>
+  <article class="protocol-card">
+    <div class="protocol-top">
+      <span class="protocol-kicker">Gemini</span>
+      <span class="tier-badge tier-protocol">{{ lt(locale, 'Протокольный уровень', 'Protocol level', '协议级') }}</span>
+    </div>
+    <h2>{{ lt(locale, 'Gemini relay check', 'Gemini relay check', 'Gemini relay 检测') }}</h2>
+    <p>{{ lt(locale, 'Проверяет Gemini через OpenAI-compatible path: function calling, JSON schema, stream consistency и usage.', 'Checks Gemini through the OpenAI-compatible path: function calling, JSON schema, streaming consistency, and usage.', '通过 OpenAI 兼容路径检测 Gemini：function calling、JSON schema、stream 一致性和 usage。') }}</p>
+    <a class="btn btn-ghost protocol-action" href="{{ with_lang('/gemini', locale) }}">{{ lt(locale, 'Проверить Gemini relay ->', 'Check Gemini relay ->', '检测 Gemini relay ->') }}</a>
+  </article>
+</section>
+
+<section class="why-veridrop">
+  <h2>{{ lt(locale, 'Почему Clodex', 'Why choose Clodex', '为什么选 Clodex') }}</h2>
+  <div class="why-grid">
+    <div class="why-item"><div class="why-num">01</div><h3>{{ lt(locale, 'Claude thinking signature', 'Claude thinking signature', 'Claude thinking signature') }}</h3><p>{{ lt(locale, 'Самый сильный сигнал подлинности Claude: серверная подпись Anthropic, которую relay не должен уметь подделать.', 'The strongest Claude authenticity signal: an Anthropic server-side signature that a relay should not be able to forge.', 'Claude 最强真伪信号：Anthropic 服务端签名，relay 理论上无法伪造。') }}</p></div>
+    <div class="why-item"><div class="why-num">02</div><h3>{{ lt(locale, 'Три протокола в одном месте', 'Three protocols in one place', '三协议一站测') }}</h3><p>{{ lt(locale, 'Claude, OpenAI и Gemini покрыты отдельно. Если key относится к другому протоколу, UI подскажет переход.', 'Claude, OpenAI, and Gemini are covered separately. If the key belongs to another protocol, the UI suggests the right page.', 'Claude、OpenAI、Gemini 分开覆盖；如果 key 属于其它协议，界面会提示跳转。') }}</p></div>
+    <div class="why-item"><div class="why-num">03</div><h3>{{ lt(locale, 'Preflight перед запуском', 'Preflight before submit', '提交前预探测') }}</h3><p>{{ lt(locale, 'Перед большой проверкой Clodex быстро смотрит доступные модели, чтобы не ждать отчёт с нулевым результатом.', 'Before a full run, Clodex quickly checks available models so you do not wait for a zero-score report.', '正式检测前先快速探测可用模型，避免等待后拿到全 0 报告。') }}</p></div>
+    <div class="why-item"><div class="why-num">04</div><h3>{{ lt(locale, 'Shareable reports', 'Shareable reports', '可分享报告') }}</h3><p>{{ lt(locale, 'Каждый отчёт получает постоянный URL и JPG-карту для отправки в чат или документацию.', 'Every report gets a permanent URL and a JPG card for chats or documentation.', '每份报告都有永久 URL 和 JPG 卡片，方便分享到群聊或文档。') }}</p></div>
+    <div class="why-item"><div class="why-num">05</div><h3>{{ lt(locale, 'Open source trust', 'Open-source trust', '开源可信') }}</h3><p>{{ lt(locale, 'Ключи не сохраняются, а серверный код можно проверить или запустить самостоятельно.', 'Keys are not retained, and the server code can be audited or self-hosted.', 'key 不留存，服务端代码可审计、可自托管。') }}</p></div>
+    <div class="why-item"><div class="why-num">06</div><h3>{{ lt(locale, 'Field-level evidence', 'Field-level evidence', '字段级证据') }}</h3><p>{{ lt(locale, 'Отчёт показывает не только score, но и конкретные поля, события stream, usage и detector details.', 'Reports show not just a score, but concrete fields, stream events, usage, and detector details.', '报告不只给分数，还展示具体字段、stream 事件、usage 和 detector details。') }}</p></div>
+  </div>
+</section>
+
+<section class="how-it-works">
+  <h2>{{ lt(locale, 'Как пользоваться: 3 шага', 'How it works: 3 steps', '怎么用：三步完成') }}</h2>
+  <ol class="how-steps">
+    <li><span class="how-num">1</span><div><h3>{{ lt(locale, 'Введите relay URL и API key', 'Enter relay URL and API key', '填写 relay 地址和 API key') }}</h3><p>{{ lt(locale, 'Выберите Claude / OpenAI / Gemini, вставьте base_url и key. Список моделей подхватится автоматически, если relay отдаёт /v1/models.', 'Choose Claude / OpenAI / Gemini, paste base_url and key. The model list is loaded automatically when the relay exposes /v1/models.', '选择 Claude / OpenAI / Gemini，填写 base_url 和 key；如果 relay 暴露 /v1/models，会自动加载模型列表。') }}</p></div></li>
+    <li><span class="how-num">2</span><div><h3>{{ lt(locale, 'Запустите проверку', 'Start the check', '开始检测') }}</h3><p>{{ lt(locale, 'Clodex параллельно запускает detector-ы. Token cost оплачивается вашим API key у провайдера/relay.', 'Clodex runs detectors in parallel. Token cost is paid by your API key to the provider or relay.', 'Clodex 并发运行 detector；token 成本由你的 API key 在上游/relay 侧支付。') }}</p></div></li>
+    <li><span class="how-num">3</span><div><h3>{{ lt(locale, 'Читайте отчёт', 'Read the report', '查看报告') }}</h3><p>{{ lt(locale, 'Смотрите общий score, critical issues и детали каждого detector-а. Для Claude главный сигнал — thinking_signature.', 'Check the score, critical issues, and each detector detail. For Claude, the key signal is thinking_signature.', '查看总分、critical issues 和每项 detector 详情；Claude 重点看 thinking_signature。') }}</p></div></li>
+  </ol>
+</section>
+
+<section class="hub-note">
+  <h2>{{ lt(locale, '100 баллов значат разное', '100 points mean different things', '不同协议的 100 分含义不同') }}</h2>
+  <p>
+    {{ lt(locale,
+      'Claude может иметь криптографический signal через thinking signature. У OpenAI и Gemini нет такого же server-side proof, поэтому там проверяется поведение, протокол и usage.',
+      'Claude can use a cryptographic signal through thinking signature. OpenAI and Gemini do not expose the same server-side proof, so those checks focus on behavior, protocol, and usage.',
+      'Claude 可通过 thinking signature 获得加密级信号；OpenAI 和 Gemini 没有同等级 server-side proof，因此主要检测行为、协议和 usage。') }}
+  </p>
+</section>
+{% endblock %}

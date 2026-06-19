@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% set domain = relay.domain %}
+{% set median = relay.overall_median %}
+{% set count = relay.total_count %}
+{% set ranked = relay.is_ranked %}
+{% set verdict_label = '优秀' if median >= 85 else ('通过' if median >= 70 else ('存在风险' if median >= 50 else '未达标')) %}
+
+{% block title %}{{ domain }} {{ lt(locale, 'relay 怎么样?', 'relay review?', 'relay 怎么样？') }}{{ count }} {{ lt(locale, '次实测', 'tests') }}, {{ lt(locale, '中位', 'median') }} {{ "%.0f"|format(median) }}/100 · {{ verdict_label }} | Clodex{% endblock %}
+{% block description %}{{ domain }} {{ lt(locale, 'relay 的真实质量评测：基于 Clodex', 'relay quality review: based on Clodex', 'relay 的真实质量评测：基于 Clodex') }} {{ count }} {{ lt(locale, '份独立检测报告聚合，中位分', 'independent reports aggregated, median', '份独立检测报告聚合，中位分') }} {{ "%.0f"|format(median) }}/100, {{ lt(locale, '判定', 'verdict') }}「{{ verdict_label }}」。{{ lt(locale, '覆盖协议', 'Protocols covered') }}:{{ relay.protocols_label }}。{{ lt(locale, '详情含每份报告时间、模型、扣分项与原始检测链接。', 'Details include timestamps, models, issues, and links to the original reports.', '详情含每份报告时间、模型、扣分项与原始检测链接。') }}{% endblock %}
+
+{% block canonical %}https://check.clodex.xyz/leaderboard/{{ domain }}{% endblock %}
+{% block og_url %}https://check.clodex.xyz/leaderboard/{{ domain }}{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "首页", "item": "https://check.clodex.xyz/"},
+    {"@type": "ListItem", "position": 2, "name": "relay红黑榜", "item": "https://check.clodex.xyz/leaderboard"},
+    {"@type": "ListItem", "position": 3, "name": "{{ domain }}", "item": "https://check.clodex.xyz/leaderboard/{{ domain }}"}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ domain }} relay质量实测 · 中位 {{ "%.0f"|format(median) }}/100",
+  "description": "{{ domain }} 基于 {{ count }} 份 Clodex 独立检测报告的聚合评分,判定「{{ verdict_label }}」",
+  "url": "https://check.clodex.xyz/leaderboard/{{ domain }}",
+  "publisher": {"@type": "Organization", "name": "Clodex", "url": "https://check.clodex.xyz"},
+  "inLanguage": "zh-CN",
+  "isAccessibleForFree": true{% if relay.last_checked %},
+  "dateModified": "{{ relay.last_checked.strftime('%Y-%m-%d') }}"{% endif %}
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="面包屑">
+  <a href="/">{{ lt(locale, '首页', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <a href="/leaderboard">{{ lt(locale, '红黑榜', 'Leaderboard', '红黑榜') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">{{ domain }}</span>
+</nav>
+
+<section class="hub-hero">
+  <h1>{{ domain }} {{ lt(locale, 'relay 怎么样?', 'relay review?', 'relay 怎么样？') }}</h1>
+  <p class="answer-capsule">
+    <strong>{{ domain }}</strong> 在 Clodex 上累计 <strong>{{ count }}</strong> 次独立检测,
+    中位分 <strong>{{ "%.0f"|format(median) }}/100</strong>,判定<strong>「{{ verdict_label }}」</strong>。
+    {{ lt(locale, '覆盖协议', 'Protocols') }}:<strong>{{ relay.protocols_label }}</strong>。
+    {% if not ranked %}
+      <span class="lb-badge-info">{{ lt(locale, '样本 &lt; 2，数据仅供参考', 'Sample size &lt; 2, for reference only', '样本 &lt; 2，数据仅供参考') }}</span>
+    {% endif %}
+    {% if relay.last_checked %}
+      {{ lt(locale, '最近一次检测', 'Last checked') }}:{{ relay.last_checked.strftime('%Y-%m-%d') }}。
+    {% endif %}
+  </p>
+</section>
+
+<section class="lb-detail-summary">
+  <div class="lb-detail-score lb-score-{{ relay.verdict_class }}">
+    <span class="lb-detail-score-num">{{ "%.0f"|format(median) }}</span>
+    <span class="lb-detail-score-label">{{ lt(locale, '中位分', 'Median', '中位分') }}</span>
+  </div>
+  <div class="lb-detail-protocols">
+    <h2>{{ lt(locale, '各协议表现', 'Per-protocol performance', '各协议表现') }}</h2>
+    <div class="lb-protocols">
+      {% for proto, ps in relay.by_protocol.items() %}
+        {% set verdict_zh = verdict_labels.get(ps.last_verdict, ps.last_verdict) %}
+        {% set badge_class = 'ok' if ps.last_score >= 85 else ('good' if ps.last_score >= 70 else ('warn' if ps.last_score >= 50 else 'fail')) %}
+        <a class="lb-proto-chip lb-proto-{{ badge_class }}" href="/r/{{ ps.last_job_id }}" title="查看 {{ protocol_labels.get(proto, proto) }} 最新报告">
+          <span class="lb-proto-name">{{ protocol_labels.get(proto, proto) }}</span>
+          <span class="lb-proto-score">{{ "%.0f"|format(ps.last_score) }}</span>
+          <span class="lb-proto-verdict">{{ verdict_zh }}</span>
+          <span class="lb-proto-count">×{{ ps.count }}</span>
+        </a>
+      {% endfor %}
+    </div>
+    <p class="lb-detail-hint">
+      {{ lt(locale, '点击任一协议徽章查看该协议下最近一次的完整检测报告。下方表格列出全部历史。', 'Click any protocol badge to open its latest full report. The table below shows the full history.', '点击任一协议徽章查看该协议下最近一次的完整检测报告。下方表格列出全部历史。') }}
+    </p>
+  </div>
+</section>
+
+{% if failed_summary %}
+<section class="lb-detail-issues">
+  <h2>{{ domain }} {{ lt(locale, '最常出问题的检测项', 'most common failing checks', '最常出问题的检测项') }}</h2>
+  <p class="lb-detail-hint">
+    {{ lt(locale, '以下 detector 在', 'The detectors below are the ones most often failing for', '以下 detector 在') }} {{ domain }} {{ lt(locale, '的历史检测中最常被判失败 —— 这些就是该 relay 的“软肋”。', 'in historical checks — these are the relay’s weak spots.', '的历史检测中最常被判失败 —— 这些就是该 relay 的“软肋”。') }}
+  </p>
+  <ul class="lb-issues-list">
+    {% for name, cnt in failed_summary %}
+      <li>
+        <code>{{ name }}</code>
+        <span class="lb-issues-count">{{ cnt }} 次失败</span>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="lb-detail-history">
+  <h2>{{ domain }} {{ lt(locale, '全部检测历史', 'full test history', '全部检测历史') }} · {{ count }} {{ lt(locale, '份报告', 'reports', '份报告') }}</h2>
+  <p class="lb-detail-hint">
+    每份报告都是某次具体的真实请求,点击即可查看完整字段级证据。
+  </p>
+  <div class="lb-history-table-wrap">
+    <table class="lb-history-table">
+      <thead>
+        <tr>
+          <th>{{ lt(locale, '日期', 'Date', '日期') }}</th>
+          <th>{{ lt(locale, '协议', 'Protocol', '协议') }}</th>
+          <th>{{ lt(locale, '测试模型', 'Model', '测试模型') }}</th>
+          <th class="num">{{ lt(locale, '分数', 'Score', '分数') }}</th>
+          <th>{{ lt(locale, '判定', 'Verdict', '判定') }}</th>
+          <th class="num">{{ lt(locale, '扣分项', 'Issues', '扣分项') }}</th>
+          <th>{{ lt(locale, '报告', 'Report', '报告') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for j in history %}
+        <tr>
+          <td>{{ j.date_str }}</td>
+          <td>{{ protocol_labels.get(j.protocol, j.protocol) }}</td>
+          <td><code>{{ j.model }}</code></td>
+          <td class="num">
+            <span class="lb-history-score lb-history-score-{{ j.badge_class }}">
+              {{ "%.0f"|format(j.score) }}
+            </span>
+          </td>
+          <td>{{ verdict_labels.get(j.verdict, j.verdict) }}</td>
+          <td class="num">{{ j.failed_count }}</td>
+          <td><a href="/r/{{ j.job_id }}">查看 →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="hub-note">
+  <h2>{{ lt(locale, '想自己测一下', 'Want to test', '想自己测一下') }} {{ domain }}?</h2>
+  <p>
+    {{ lt(locale, 'Clodex 完全免费，无需注册，API key 不落盘。选对应协议页面填入 base_url 和 key 即可在 30–75 秒内拿到独立的检测报告并自动汇入此榜：', 'Clodex is free, no signup required, and API keys are not written to disk. Pick a protocol page, enter base_url and key, and get a standalone report in 30–75 seconds:', 'Clodex 完全免费，无需注册，API key 不落盘。选对应协议页面填入 base_url 和 key 即可在 30–75 秒内拿到独立的检测报告并自动汇入此榜：') }}
+    <a href="/claude">Claude</a> · <a href="/openai">OpenAI</a> · <a href="/gemini">Gemini</a>
+  </p>
+</section>
+
+<section class="hub-note">
+  <h2>{{ lt(locale, '这页数据怎么来的?', 'Where does this data come from?', '这页数据怎么来的？') }}</h2>
+  <p>
+    本页所有数据来自社区在 Clodex 上对 <strong>{{ domain }}</strong> 进行的
+    <strong>{{ count }}</strong> 次公开检测。每份原始报告永久保存在
+    <code>/r/{job_id}</code> 路径,可随时点击核对。中位分用于排名(避免极端值干扰),
+    最近一次 verdict 决定每个协议的颜色徽章。<a href="/leaderboard">回到完整红黑榜 →</a>
+  </p>
+</section>
+{% endblock %}

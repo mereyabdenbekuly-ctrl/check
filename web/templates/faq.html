@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lt(locale, 'FAQ · Проверка AI API relay | Clodex', 'FAQ · AI API relay authenticity checker | Clodex', '常见问题 · AI API relay 真伪检测 | Clodex') }}{% endblock %}
+{% block description %}{{ lt(locale, total_count ~ ' вопросов о Claude, OpenAI, Gemini relay, signatures, usage, приватности и self-hosting.', total_count ~ ' FAQ items about Claude, OpenAI, Gemini relays, signatures, usage, privacy, and self-hosting.', total_count ~ ' 个关于 Claude、OpenAI、Gemini relay、signature、usage、隐私和自托管的问题。') }}{% endblock %}
+{% block og_title %}{{ lt(locale, 'FAQ по AI API relay · Clodex', 'AI API relay FAQ · Clodex', 'AI API relay 常见问题 · Clodex') }}{% endblock %}
+{% block og_description %}{{ lt(locale, 'Практические ответы о подлинности relay, протоколах и безопасности API keys.', 'Practical answers about relay authenticity, protocols, and API-key safety.', '关于 relay 真伪、协议和 API key 安全的实用回答。') }}{% endblock %}
+{% block canonical %}https://check.clodex.xyz/faq{% endblock %}
+{% block og_url %}https://check.clodex.xyz/faq{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{{ jsonld | safe }}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="faq-hero">
+  <h1>{{ lt(locale, 'FAQ', 'FAQ', '常见问题') }}</h1>
+  <p class="faq-hero-sub">
+    {{ lt(locale,
+      'Clodex помогает понять, действительно ли AI API relay передаёт Claude / OpenAI / Gemini, и какие риски есть у ключей, usage и протоколов.',
+      'Clodex helps you understand whether an AI API relay truly passes through Claude / OpenAI / Gemini, and what risks exist around keys, usage, and protocols.',
+      'Clodex 帮你判断 AI API relay 是否真实透传 Claude / OpenAI / Gemini，以及 key、usage 和协议相关风险。') }}
+    {{ lt(locale, 'Всего вопросов:', 'Total questions:', '问题总数：') }} <strong>{{ total_count }}</strong>
+  </p>
+</section>
+
+<div class="faq-layout">
+  <aside class="faq-toc">
+    <div class="faq-toc-title">{{ lt(locale, 'Содержание', 'Contents', '目录') }}</div>
+    <ul class="faq-toc-list">
+      {% for cat in categories %}
+      <li><a href="#{{ cat.id }}">{{ cat.title }}</a> <span class="faq-toc-count">{{ cat.entries|length }}</span></li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <main class="faq-main">
+    {% for cat in categories %}
+    <section class="faq-category" id="{{ cat.id }}">
+      <h2>{{ cat.title }}</h2>
+      <p class="faq-category-intro">{{ cat.intro }}</p>
+      <div class="faq-entries">
+        {% for entry in cat.entries %}
+        <details class="faq-entry" id="{{ cat.id }}-{{ entry.id }}">
+          <summary class="faq-q">
+            {{ entry.q }}
+            <a class="faq-permalink" href="#{{ cat.id }}-{{ entry.id }}" aria-label="{{ lt(locale, 'Ссылка на вопрос', 'Link to this question', '复制链接到该问题') }}">#</a>
+          </summary>
+          <div class="faq-a">{{ entry.a | safe }}</div>
+        </details>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    <section class="faq-no-answer">
+      <h2>{{ lt(locale, 'Не нашли ответ?', 'Didn’t find an answer?', '没找到答案？') }}</h2>
+      <p>
+        {{ lt(locale, 'Откройте issue на', 'Open an issue on', '欢迎在') }}
+        <a href="https://github.com/mereyabdenbekuly-ctrl/check" target="_blank" rel="noopener">GitHub</a>
+        {{ lt(locale, 'или запустите', 'or run', '提 issue，或者直接') }}
+        <a href="{{ with_lang('/claude', locale) }}">{{ lt(locale, 'проверку', 'a check', '跑一次检测') }}</a>.
+      </p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  function openTarget() {
+    const hash = location.hash.slice(1);
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (el && el.tagName === 'DETAILS') {
+      el.open = true;
+      setTimeout(() => el.scrollIntoView({behavior: 'smooth', block: 'start'}), 50);
+    }
+  }
+  openTarget();
+  window.addEventListener('hashchange', openTarget);
+})();
+</script>
+{% endblock %}
