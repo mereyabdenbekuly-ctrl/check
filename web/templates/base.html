@@ -3,35 +3,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}{{ ui.site_name }} · {{ ui.site_tagline }}{% endblock %}</title>
+  <title>{% block title %}CLODEX Check · {{ ui.site_tagline }}{% endblock %}</title>
   <meta name="description" content="{% block description %}{{ ui.footer_desc }}{% endblock %}" />
-  <meta name="keywords" content="проверка AI API, проверка Claude API, проверка GPT API, проверка Gemini API, API relay, API прокси, подлинность модели, Claude thinking signature" />
+  <meta name="keywords" content="проверка AI API, проверка Claude API, проверка GPT API, проверка Gemini API, API relay, API прокси, подлинность модели, Claude thinking signature, CLODEX Check" />
   <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#ffffff" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Clodex Check" />
-  <meta property="og:title" content="{% block og_title %}{{ ui.site_name }} · {{ ui.site_tagline }}{% endblock %}" />
+  <meta property="og:site_name" content="CLODEX Check" />
+  <meta property="og:title" content="{% block og_title %}CLODEX Check · {{ ui.site_tagline }}{% endblock %}" />
   <meta property="og:description" content="{% block og_description %}{{ ui.footer_desc }}{% endblock %}" />
   <meta property="og:url" content="{% block og_url %}https://check.clodex.xyz/{% endblock %}" />
   <meta property="og:locale" content="{{ og_locale or 'ru_RU' }}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="{% block twitter_title %}{{ ui.site_name }} · {{ ui.site_tagline }}{% endblock %}" />
+  <meta name="twitter:title" content="{% block twitter_title %}CLODEX Check · {{ ui.site_tagline }}{% endblock %}" />
   <meta name="twitter:description" content="{% block twitter_description %}{{ ui.footer_desc }}{% endblock %}" />
   {% block og_image %}
-  <meta property="og:image" content="https://check.clodex.xyz/static/clodex-logo.png" />
-  <meta name="twitter:image" content="https://check.clodex.xyz/static/clodex-logo.png" />
+  <meta property="og:image" content="https://check.clodex.xyz/static/clodex-icon.png" />
+  <meta name="twitter:image" content="https://check.clodex.xyz/static/clodex-icon.png" />
   {% endblock %}
   <link rel="canonical" href="{% block canonical %}https://check.clodex.xyz/{% endblock %}" />
-  <link rel="stylesheet" href="/static/style.css?v=20260618-logo-bg-1" />
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" type="image/png" href="/static/clodex-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css?v=20261125-clodex-v2" />
   {% block head_extra %}{% endblock %}
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-LWRPQF2182"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-LWRPQF2182');
-  </script>
   <script>
     window.__veridropUi = {{ ui | tojson }};
     window.__veridropLocale = {{ locale | tojson }};
@@ -50,7 +47,7 @@
       "submit_failed": lt(locale, "Ошибка отправки", "Submission failed", "提交失败"),
       "open_menu": lt(locale, "Открыть меню", "Open menu", "打开菜单"),
       "close_menu": lt(locale, "Закрыть меню", "Close menu", "关闭菜单"),
-      "notice": lt(locale, "Данные со страницы {label} подставлены, повторяем проверку...", "Loaded credentials from {label} page, reprobing...", "已从 {label} 页面带入凭据,正在重新探测..."),
+      "notice": lt(locale, "Данные со страницы {label} подставлены, повторяем проверку…", "Loaded credentials from {label} page, reprobing…", "已从 {label} 页面带入凭据,正在重新探测…"),
       "probe_direct_try": lt(locale, "указанная модель будет проверена напрямую", "the entered model will be tried directly", "你填的模型会被直接尝试"),
       "probe_can_continue": lt(locale, "проверку можно продолжить", "detection can continue", "检测可正常进行"),
       "models_none_for_protocol": lt(locale, "У relay нет моделей {label}", "This relay has no {label} models", "该relay没有任何 {label} 模型"),
@@ -61,17 +58,23 @@
       "upstream_rejected": lt(locale, "верхний провайдер отклонил запрос", "upstream rejected the request", "上游拒绝"),
       "swap_retry": lt(locale, "Заменить на {model} и повторить", "Switch to {model} and retry", "换成 {model} 重试"),
       "force_submit": lt(locale, "Понимаю, отправить принудительно", "I understand, force submit", "我知道,强制提交"),
-      "force_submit_title": lt(locale, "Preflight иногда ошибается. При принудительной отправке недоступная модель даст ошибочный отчёт.", "Preflight can occasionally be wrong. If the model is truly dead, forced detection will produce an error report.", "preflight 偶尔会误判(例如 max_tokens 太小被代理拒)。强制提交后,如果模型真挂了,检测会以错误结果呈现。"),
+      "force_submit_title": lt(locale, "Preflight иногда ошибается. При принудительной отправке недоступная модель даст ошибочный отчёт.", "Preflight can occasionally be wrong. If the model is truly dead, forced detection will produce an error report.", "preflight 偶尔会误判。强制提交后,如果模型真不可用,检测会以错误结果呈现。"),
       "start_detection": lt(locale, "Начать проверку", "Start check", "开始检测"),
+      "switch_protocol": lt(locale, "Переключиться на {label}", "Switch to {label}", "切换到 {label}"),
+      "probe_failed": lt(locale, "Предпроверка не удалась", "Probe failed", "预探测失败"),
+      "probe_rate_limited": lt(locale, "Слишком частые запросы, повторите позже", "Too many probes, retry later", "探测过于频繁,请稍后再试"),
+      "auth_failed": lt(locale, "Ошибка авторизации API-ключа", "API key authentication failed", "鉴权失败"),
+      "models_unavailable": lt(locale, "Этот relay не отдаёт /v1/models", "This relay does not expose /v1/models", "该relay不暴露 /v1/models"),
     } | tojson }};
   </script>
 </head>
 <body>
+  {% set cur_path = request.url.path %}
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="/">
-        <img class="brand-mark-img" src="/static/clodex-logo.png" alt="Clodex" />
-        <span>{{ ui.site_name }}</span>
+      <a class="brand" href="{{ with_lang('/', locale) }}" aria-label="CLODEX Check">
+        <img class="brand-logo" src="/static/clodex-logo-header.png" alt="CLODEX" width="130" height="29" />
+        <span class="brand-pill">CHECK</span>
       </a>
       <button
         class="nav-toggle"
@@ -83,28 +86,36 @@
         <span class="nav-toggle-bar"></span>
         <span class="nav-toggle-bar"></span>
       </button>
-      <nav class="site-nav" id="site-nav">
+      <nav class="site-nav" id="site-nav" aria-label="{{ lt(locale, 'Основная навигация', 'Primary navigation', '主导航') }}">
         <div class="nav-links">
-          <a href="{{ with_lang('/', locale) }}">{{ ui.nav_home }}</a>
-          <a href="{{ with_lang('/claude', locale) }}">{{ ui.nav_claude }}</a>
-          <a href="{{ with_lang('/openai', locale) }}">{{ ui.nav_openai }}</a>
-          <a href="{{ with_lang('/gemini', locale) }}">{{ ui.nav_gemini }}</a>
-          <a href="{{ with_lang('/leaderboard', locale) }}">{{ ui.nav_leaderboard }}</a>
-          <a href="{{ with_lang('/faq', locale) }}">{{ ui.nav_faq }}</a>
+          <a href="{{ with_lang('/', locale) }}" class="{% if cur_path in ('/', '/ru') %}is-active{% endif %}">{{ ui.nav_home }}</a>
+          <a href="{{ with_lang('/claude', locale) }}" class="{% if cur_path.startswith('/claude') %}is-active{% endif %}">{{ ui.nav_claude }}</a>
+          <a href="{{ with_lang('/openai', locale) }}" class="{% if cur_path.startswith('/openai') %}is-active{% endif %}">{{ ui.nav_openai }}</a>
+          <a href="{{ with_lang('/gemini', locale) }}" class="{% if cur_path.startswith('/gemini') %}is-active{% endif %}">{{ ui.nav_gemini }}</a>
+          <a href="{{ with_lang('/leaderboard', locale) }}" class="{% if cur_path.startswith('/leaderboard') %}is-active{% endif %}">{{ ui.nav_leaderboard }}</a>
+          <a href="{{ with_lang('/faq', locale) }}" class="{% if cur_path.startswith('/faq') %}is-active{% endif %}">{{ ui.nav_faq }}</a>
         </div>
-        <span class="nav-lang" aria-label="{{ ui.lang_switch }}">
-          <a href="{{ with_lang(request.url, 'ru') }}" class="{% if locale == 'ru' %}active{% endif %}" aria-current="{% if locale == 'ru' %}true{% else %}false{% endif %}">RU</a>
-          <a href="{{ with_lang(request.url, 'en') }}" class="{% if locale == 'en' %}active{% endif %}" aria-current="{% if locale == 'en' %}true{% else %}false{% endif %}">EN</a>
-          <a href="{{ with_lang(request.url, 'zh') }}" class="{% if locale == 'zh' %}active{% endif %}" aria-current="{% if locale == 'zh' %}true{% else %}false{% endif %}">CN</a>
-        </span>
-        <a class="nav-github" href="https://github.com/mereyabdenbekuly-ctrl/check"
-          target="_blank" rel="noopener noreferrer"
-          aria-label="{{ ui.footer_source }}"
-          title="{{ ui.footer_source }} · AGPL-3.0">
-          <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-          </svg>
-        </a>
+        <div class="nav-actions">
+          <span class="nav-lang" aria-label="{{ ui.lang_switch }}">
+            <a href="{{ with_lang(request.url, 'ru') }}" class="{% if locale == 'ru' %}active{% endif %}" aria-current="{% if locale == 'ru' %}page{% else %}false{% endif %}">RU</a>
+            <a href="{{ with_lang(request.url, 'en') }}" class="{% if locale == 'en' %}active{% endif %}" aria-current="{% if locale == 'en' %}page{% else %}false{% endif %}">EN</a>
+            <a href="{{ with_lang(request.url, 'zh') }}" class="{% if locale == 'zh' %}active{% endif %}" aria-current="{% if locale == 'zh' %}page{% else %}false{% endif %}">CN</a>
+          </span>
+          <a class="nav-github" href="https://github.com/mereyabdenbekuly-ctrl/check"
+            target="_blank" rel="noopener noreferrer"
+            aria-label="{{ ui.footer_source }}"
+            title="GitHub · mereyabdenbekuly-ctrl/check · AGPL-3.0">
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+          </a>
+          <a class="nav-main-cta" href="https://clodex.xyz/" target="_blank" rel="noopener">
+            <span>clodex.xyz</span>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M5 11L11 5M11 5H6.5M11 5V9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </div>
       </nav>
     </div>
   </header>
@@ -114,12 +125,32 @@
   <footer class="site-footer">
     <div class="footer-grid">
       <div class="footer-col footer-col-tagline">
-        <p class="footer-tagline">
-          <strong>{{ ui.site_name }}</strong> · {{ ui.site_tagline }}
-        </p>
+        <div class="footer-brand-row">
+          <img class="footer-brand-logo" src="/static/clodex-logo-header.png" alt="CLODEX" width="112" height="25" />
+          <span class="brand-pill">CHECK</span>
+        </div>
         <p class="footer-desc">
           {{ ui.footer_desc }}
         </p>
+      </div>
+      <div class="footer-col">
+        <h4>CLODEX</h4>
+        <ul>
+          <li><a href="https://clodex.xyz/" target="_blank" rel="noopener">{{ lt(locale, 'Главная clodex.xyz', 'clodex.xyz Home', 'clodex.xyz 首页') }}</a></li>
+          <li><a href="https://clodex.xyz/pricing" target="_blank" rel="noopener">{{ lt(locale, 'Модели и цены', 'Models & Pricing', '模型与价格') }}</a></li>
+          <li><a href="https://clodex.xyz/docs" target="_blank" rel="noopener">API Docs</a></li>
+          <li><a href="https://clodex.xyz/keys" target="_blank" rel="noopener">{{ lt(locale, 'Получить API-ключ', 'Get API Key', '获取 API 密钥') }}</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>{{ ui.footer_tools }}</h4>
+        <ul>
+          <li><a href="{{ with_lang('/claude', locale) }}">{{ ui.nav_claude }}</a></li>
+          <li><a href="{{ with_lang('/openai', locale) }}">{{ ui.nav_openai }}</a></li>
+          <li><a href="{{ with_lang('/gemini', locale) }}">{{ ui.nav_gemini }}</a></li>
+          <li><a href="{{ with_lang('/leaderboard', locale) }}">{{ ui.nav_leaderboard }}</a></li>
+          <li><a href="{{ with_lang('/faq', locale) }}">{{ ui.footer_faq }}</a></li>
+        </ul>
       </div>
       <div class="footer-col">
         <h4>{{ ui.footer_projects }}</h4>
@@ -130,25 +161,9 @@
           <li><a href="https://github.com/mereyabdenbekuly-ctrl/check/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">{{ ui.footer_contrib }}</a></li>
         </ul>
       </div>
-      <div class="footer-col">
-        <h4>{{ ui.footer_tools }}</h4>
-        <ul>
-          <li><a href="/claude">{{ ui.nav_claude }}</a></li>
-          <li><a href="/openai">{{ ui.nav_openai }}</a></li>
-          <li><a href="/gemini">{{ ui.nav_gemini }}</a></li>
-          <li><a href="/leaderboard">{{ ui.nav_leaderboard }}</a></li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h4>{{ ui.footer_resources }}</h4>
-        <ul>
-          <li><a href="/faq">{{ ui.footer_faq }}</a></li>
-          <li><a href="/leaderboard">{{ ui.footer_rank }}</a></li>
-        </ul>
-      </div>
     </div>
     <p class="footer-copyright muted small">
-      © {{ ui.site_name }} · {{ ui.footer_copy }}
+      © CLODEX Check · {{ ui.footer_copy }}
       <a class="footer-copyright-github" href="https://github.com/mereyabdenbekuly-ctrl/check"
         target="_blank" rel="noopener noreferrer"
         aria-label="{{ ui.footer_source }}"
@@ -160,6 +175,6 @@
       </a>
     </p>
   </footer>
-  <script src="/static/app.js?v=20260618-ru-lang-2" defer></script>
+  <script src="/static/app.js?v=20261125-clodex-v2" defer></script>
 </body>
 </html>

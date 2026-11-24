@@ -193,14 +193,34 @@ async def test_openai_client_strips_temperature_for_default_only_models():
     assert "temperature" not in captured["body"]
 
 
+@pytest.mark.parametrize(
+    "model,expect_stripped",
+    [
+        ("gpt-6.2-astra", True),
+        ("gpt-6.2-sol", True),
+        ("gpt-6.1-sol", True),
+        ("gpt-6-astra", True),
+        ("gpt-5.6-sol", True),
+        ("gpt-5.5", True),
+        ("gpt-5.5-2026-04-23", True),
+        ("gpt-5.4", True),
+        ("gpt-5.4-pro", True),
+        ("gpt-5-4", True),
+        ("o3-mini", True),
+        ("gpt-5.4-mini", False),
+        ("gpt-5.4-nano", False),
+        ("gpt-4o", False),
+        ("gpt-4o-mini", False),
+    ],
+)
 @pytest.mark.asyncio
-async def test_openai_client_keeps_temperature_for_other_models():
+async def test_openai_client_temperature_rules(model: str, expect_stripped: bool):
     captured: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         import json as _json
         captured["body"] = _json.loads(request.content)
-        return httpx.Response(200, json=_chat_payload(model="gpt-5.4"))
+        return httpx.Response(200, json=_chat_payload(model=model))
 
     transport = httpx.MockTransport(handler)
     client = OpenAIChatClient("https://api.openai.com", "sk-test")
@@ -211,14 +231,17 @@ async def test_openai_client_keeps_temperature_for_other_models():
     )
     try:
         await client.chat_completions_create(
-            model="gpt-5.4",
+            model=model,
             temperature=0,
             messages=[{"role": "user", "content": "hi"}],
         )
     finally:
         await client.aclose()
 
-    assert captured["body"]["temperature"] == 0
+    if expect_stripped:
+        assert "temperature" not in captured["body"]
+    else:
+        assert captured["body"]["temperature"] == 0
 
 
 def test_openai_detectors_use_core_base_classes():
@@ -233,15 +256,13 @@ def test_openai_tier_banner_disclaims_authenticity():
     assert "无法可靠区分" in message
 
 
-def test_openai_default_model_choices_are_gpt5_series():
-    assert model_choices() == [
-        "gpt-5.5",
-        "gpt-5.4",
-        "gpt-5.3-codex",
-        "gpt-5.4-nano",
-        "gpt-5.4-mini",
-    ]
-    assert default_model() == "gpt-5.5"
+def test_openai_default_model_choices_include_modern_series():
+    choices = model_choices()
+    assert "gpt-6.2-astra" in choices
+    assert "gpt-6.2-sol" in choices
+    assert "gpt-5.5" in choices
+    assert "gpt-5.4-mini" in choices
+    assert default_model() == choices[0]
 
 
 def test_openai_protocol_detector_accepts_chat_completion_shape():

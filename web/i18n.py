@@ -47,6 +47,9 @@ def detect_locale(request: Request | None = None, fallback: str | None = None) -
         qp = request.query_params.get("lang")
         if qp:
             return normalize_locale(qp)
+        cookie_lang = request.cookies.get("lang")
+        if cookie_lang:
+            return normalize_locale(cookie_lang)
     return normalize_locale(fallback)
 
 
@@ -243,6 +246,52 @@ def status_short(locale: str, status: str, name: str | None = None) -> str:
     return _STATUS_SHORT[locale].get(status, _STATUS_SHORT[locale]["unknown"])
 
 
+_VERDICT_LABELS_BY_LOCALE: dict[str, dict[str, str]] = {
+    "ru": {"passed": "Пройдено", "marginal": "Есть риски", "failed": "Не пройдено"},
+    "en": {"passed": "Passed", "marginal": "At risk", "failed": "Failed"},
+    "zh": {"passed": "通过", "marginal": "存在风险", "failed": "未达标"},
+}
+
+
+def verdict_labels_for_locale(locale: str) -> dict[str, str]:
+    loc = normalize_locale(locale)
+    return dict(_VERDICT_LABELS_BY_LOCALE.get(loc, _VERDICT_LABELS_BY_LOCALE[DEFAULT_LOCALE]))
+
+
+def tier_banner_for_locale(locale: str, protocol: str) -> tuple[str, str]:
+    loc = normalize_locale(locale)
+    proto = (protocol or "anthropic").lower()
+    if proto == "openai":
+        return (
+            lt(loc, "Поведенческий и протокольный уровень", "Behavior & protocol level", "行为/协议级验证"),
+            lt(
+                loc,
+                "OpenAI не отдаёт серверную криптоподпись уровня Claude. Проверка анализирует соответствие Chat Completions API, поддержку tools и structured output, поток и usage-отпечатки сторонних адаптеров.",
+                "OpenAI responses do not expose a Claude-like cryptographic signature. This check inspects Chat Completions compliance, tool & structured output support, streaming parity, and third-party adapter fingerprints in usage.",
+                "OpenAI 响应不包含 Claude 级别的加密签名。本检测重点检查 Chat Completions 协议规范、工具调用与结构化输出能力、流式一致性以及 usage 字段中的跨厂商适配痕迹。",
+            ),
+        )
+    if proto == "gemini":
+        return (
+            lt(loc, "Протокольный уровень", "Protocol level", "协议级验证"),
+            lt(
+                loc,
+                "Проверка тестирует Gemini через OpenAI-совместимый путь POST /chat/completions: структуру ответа, function calling, JSON Schema, стриминг и согласованность usage.",
+                "This check probes Gemini through the OpenAI-compatible POST /chat/completions path: response shape, function calling, JSON Schema, streaming parity, and usage consistency.",
+                "本检测通过 OpenAI 兼容路径 POST /chat/completions 探测 Gemini relay，验证响应结构、函数调用、JSON Schema、流式一致性与 usage 字段。",
+            ),
+        )
+    return (
+        lt(loc, "Криптографический уровень", "Cryptographic level", "加密级验证"),
+        lt(
+            loc,
+            "Claude thinking signature подписывается на стороне серверов Anthropic. Успешное прохождение этой проверки — самый надёжный сигнал оригинальной модели Claude.",
+            "Claude thinking signatures are signed server-side by Anthropic. Passing this check is the strongest authenticity signal in the suite.",
+            "Claude thinking signature 由 Anthropic 服务端签发，通过该项是目前检测集中可信度最高的原版模型真伪信号。",
+        ),
+    )
+
+
 def result_caption(locale: str, score: float, verdict: str, protocol: str = "anthropic") -> str:
     locale = normalize_locale(locale)
     if locale == "zh":
@@ -340,8 +389,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "page_loading": "正在加载…",
 
         "relay_fallback": "relay",
-        "seo_report_title": "{domain} {protocol} relay检测: {score:.0f}/100 {verdict} | Clodex",
-        "seo_report_description": "{domain} 的 {protocol} relay 检测完整报告：模型 {model}，总分 {score:.0f}/100，结论 {verdict}。{total} 项检测中 {passed} 项通过，{failed} 项未通过。Clodex 从字段级检查 relay 的真实性和质量。",
+        "seo_report_title": "{domain} {protocol} relay检测: {score:.0f}/100 {verdict} | CLODEX Check",
+        "seo_report_title_model": "{domain} {protocol} {model} 检测: {score:.0f}/100 {verdict} | CLODEX Check",
+        "seo_report_description": "{domain} 的 {protocol} relay 检测完整报告：模型 {model}，总分 {score:.0f}/100，结论 {verdict}。{total} 项检测中 {passed} 项通过，{failed} 项未通过。CLODEX Check 从字段级检查 relay 的真实性和质量。",
         "seo_report_og": "{domain} 报告：{score:.0f}/100 {verdict}（{passed}/{total} 通过）",
         "faq_title": "常见问题",
         "faq_intro": "Clodex 帮你判断 AI API relay是否真的透传 Claude、OpenAI 或 Gemini。",
@@ -416,8 +466,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "handoff_from": "Loaded credentials from {label} page",
         "reprobe": "reprobing",
         "relay_fallback": "relay",
-        "seo_report_title": "{domain} {protocol} relay check: {score:.0f}/100 {verdict} | Clodex",
-        "seo_report_description": "Full report for the {protocol} relay check on {domain}: model {model}, total score {score:.0f}/100, verdict {verdict}. {passed} of {total} checks passed and {failed} failed. Clodex inspects the relay at field level to reveal authenticity and quality.",
+        "seo_report_title": "{domain} {protocol} relay check: {score:.0f}/100 {verdict} | CLODEX Check",
+        "seo_report_title_model": "{domain} {protocol} {model} check: {score:.0f}/100 {verdict} | CLODEX Check",
+        "seo_report_description": "Full report for the {protocol} relay check on {domain}: model {model}, total score {score:.0f}/100, verdict {verdict}. {passed} of {total} checks passed and {failed} failed. CLODEX Check inspects the relay at field level to reveal authenticity and quality.",
         "seo_report_og": "{domain} report: {score:.0f}/100 {verdict} ({passed}/{total} passed)",
         "faq_title": "FAQ",
         "faq_intro": "Clodex helps detect whether an AI API relay is truly passing through Claude, OpenAI or Gemini.",
@@ -492,8 +543,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "handoff_from": "Подхвачены данные со страницы {label}",
         "reprobe": "повторная проверка",
         "relay_fallback": "relay",
-        "seo_report_title": "{domain}: проверка {protocol} relay, {score:.0f}/100 {verdict} | Clodex",
-        "seo_report_description": "Полный отчёт проверки {protocol} relay для {domain}: модель {model}, итоговый счёт {score:.0f}/100, вердикт {verdict}. Пройдено {passed} из {total} проверок, ошибок: {failed}. Clodex проверяет relay на уровне полей, чтобы показать подлинность и качество.",
+        "seo_report_title": "{domain}: проверка {protocol} relay — {score:.0f}/100 ({verdict}) | CLODEX Check",
+        "seo_report_title_model": "{domain}: проверка {protocol} {model} — {score:.0f}/100 ({verdict}) | CLODEX Check",
+        "seo_report_description": "Полный отчёт проверки {protocol} relay для {domain}: модель {model}, итоговый счёт {score:.0f}/100, вердикт {verdict}. Пройдено {passed} из {total} проверок, ошибок: {failed}. CLODEX Check проверяет relay на уровне полей, чтобы показать подлинность и качество.",
         "seo_report_og": "{domain}: отчёт проверки {score:.0f}/100 {verdict}, пройдено {passed}/{total}",
         "faq_title": "FAQ",
         "faq_intro": "Clodex помогает понять, действительно ли AI API relay передаёт Claude, OpenAI или Gemini.",

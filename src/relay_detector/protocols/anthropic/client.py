@@ -36,6 +36,10 @@ MAX_RETRIES = 4
 # that include `temperature` with HTTP 400 "deprecated for this model".
 # Adding entries here keeps detector code model-agnostic.
 PARAM_DEPRECATIONS: dict[str, tuple[str, ...]] = {
+    "claude-opus-5": ("temperature", "top_p", "top_k"),
+    "claude-sonnet-5": ("temperature", "top_p", "top_k"),
+    "claude-haiku-5": ("temperature", "top_p", "top_k"),
+    "claude-fable-5": ("temperature", "top_p", "top_k"),
     "claude-opus-4-7": ("temperature",),
     "claude-opus-4-8": ("temperature",),
 }

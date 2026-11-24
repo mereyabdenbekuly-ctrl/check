@@ -1,55 +1,67 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Claude API relay check · thinking signature | Clodex', 'Claude API relay check · thinking signature | Clodex', 'Claude API relay 检测 · thinking signature | Clodex') }}{% endblock %}
-{% block description %}{{ lt(locale, 'Проверка Claude relay через thinking signature, protocol shape, usage, tool use, structured output и stream consistency. API key не сохраняется.', 'Check Claude relays with thinking signature, protocol shape, usage, tool use, structured output, and stream consistency. API keys are not retained.', '通过 thinking signature、协议形状、usage、tool use、structured output 和 stream 一致性检测 Claude relay。API key 不留存。') }}{% endblock %}
+{% block title %}{{ lt(locale, 'Проверка Claude API · thinking signature | CLODEX Check', 'Claude API Check · thinking signature | CLODEX Check', 'Claude API 检测 · thinking signature | CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, 'Проверка Claude API (Opus 5.5/4.8, Sonnet 5.5/4.6, Haiku 5.5/4.5) через криптографическую thinking signature, protocol shape, tool use, PDF, usage и stream. API-ключ не сохраняется.', 'Verify Claude API relays (Opus 5.5/4.8, Sonnet 5.5/4.6, Haiku 5.5/4.5) via cryptographic thinking signature, protocol shape, tool use, PDF, usage, and streaming. API keys are never persisted.', '检测 Claude API（Opus 5.5/4.8、Sonnet 5.5/4.6、Haiku 5.5/4.5）：thinking signature、协议规范、tool use、PDF、usage 与 stream 一致性。') }}{% endblock %}
 {% block canonical %}https://check.clodex.xyz/claude{% endblock %}
 {% block og_url %}https://check.clodex.xyz/claude{% endblock %}
 
 {% block content %}
 <section class="hero">
-  <h1>{{ lt(locale, 'Этот Claude API relay настоящий?', 'Is this Claude API relay authentic?', '这家 Claude API relay 是真原生吗？') }}</h1>
-  <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>Clodex</strong>
+  <div class="eyebrow eyebrow-success">
+    <span class="eyebrow-dot" aria-hidden="true"></span>
+    <span>{{ lt(locale, 'КРИПТОГРАФИЧЕСКАЯ ПРОВЕРКА · ANTHROPIC MESSAGES API', 'CRYPTOGRAPHIC SIGNAL · ANTHROPIC MESSAGES API', '加密级检测 · ANTHROPIC MESSAGES API') }}</span>
+  </div>
+  <h1>{{ lt(locale, 'Проверка подлинности Claude API', 'Claude API Authenticity Check', 'Claude API 真伪检测') }}</h1>
+  <p class="hero-sub answer-capsule">
+    <strong>CLODEX Check</strong>
     {{ lt(locale,
-      'проверяет Claude через thinking signature Anthropic и набор дополнительных detector-ов. Бесплатно, без регистрации, API key не сохраняется.',
-      'checks Claude through Anthropic thinking signatures plus additional detectors. Free, no signup, no API-key retention.',
-      '通过 Anthropic thinking signature 与多项 detector 检测 Claude。免费、无需注册、API key 不留存。') }}
+      'проверяет эндпоинт через серверную подпись Anthropic (thinking signature) и 11 дополнительных детекторов. Без регистрации, API-ключ не сохраняется.',
+      'audits Claude endpoints via Anthropic server-side thinking signatures and 11 additional detectors. Free, no signup, keys never persisted.',
+      '通过 Anthropic 服务端 thinking signature 与 11 项协议/行为检测器验证 Claude 接口真伪。免费、无需注册、key 不落盘。') }}
   </p>
 </section>
 
 <section class="card form-card">
   <form id="detect-form" data-endpoint="/api/detect/claude" autocomplete="off">
     <div class="field">
-      <label for="base_url">{{ lt(locale, 'Relay URL', 'Relay URL', 'relay 接口地址') }}</label>
-      <input type="url" id="base_url" name="base_url" required placeholder="https://api.example.com" />
-      <p class="hint">{{ lt(locale, 'Корневой URL relay. Clodex отправит тестовые запросы в /v1/messages.', 'Relay root URL. Clodex will send test requests to /v1/messages.', 'relay 根 URL，Clodex 会向 /v1/messages 发送测试请求。') }}</p>
+      <div class="field-label-row">
+        <label for="base_url">{{ lt(locale, 'Base URL провайдера', 'Provider / Relay Base URL', '接口 Base URL') }}</label>
+        <button type="button" class="preset-btn" data-preset-url="https://clodex.xyz" data-preset-model="claude-sonnet-5-5">
+          {{ lt(locale, 'Подставить clodex.xyz', 'Use clodex.xyz', '填入 clodex.xyz') }}
+        </button>
+      </div>
+      <input type="url" id="base_url" name="base_url" required placeholder="https://clodex.xyz" />
+      <p class="hint">{{ lt(locale, 'Корневой URL эндпоинта (без /v1/messages). Можно проверить clodex.xyz или любого другого провайдера.', 'Endpoint root URL (without /v1/messages). Test clodex.xyz or any other provider.', '接口根地址（无需 /v1/messages）。可测 clodex.xyz 或任意第三方中转站。') }}</p>
     </div>
 
     <div class="field">
-      <label for="api_key">{{ lt(locale, 'API key', 'API key', 'API 密钥') }}</label>
+      <div class="field-label-row">
+        <label for="api_key">{{ lt(locale, 'API-ключ', 'API key', 'API 密钥') }}</label>
+        <a class="field-aux-link" href="https://clodex.xyz/keys" target="_blank" rel="noopener">{{ lt(locale, 'Получить ключ CLODEX ↗', 'Get CLODEX key ↗', '获取 CLODEX 密钥 ↗') }}</a>
+      </div>
       <input type="password" id="api_key" name="api_key" required placeholder="sk-..." minlength="8" />
-      <p class="hint">{{ lt(locale, 'Используется только для этой проверки, не пишется в отчёт, логи или диск.', 'Used only for this check; not written to reports, logs, or disk.', '仅用于本次检测，不写入报告、日志或磁盘。') }}</p>
+      <p class="hint">{{ lt(locale, 'Используется только во время проверки. Не попадает в отчёт, логи или базу данных.', 'Used only during this run. Never written to reports, logs, or storage.', '仅用于本次检测，不写入报告、日志或数据库。') }}</p>
     </div>
 
     <div class="field-row">
       <div class="field">
-        <label for="model">{{ lt(locale, 'Модель', 'Target model', '目标模型') }}</label>
+        <label for="model">{{ lt(locale, 'Целевая модель', 'Target model', '目标模型') }}</label>
         <div class="combo">
-          <input type="text" id="model" name="model" required value="claude-haiku-4-5-20251001" autocomplete="off" placeholder="claude-haiku-4-5-20251001" maxlength="200" />
+          <input type="text" id="model" name="model" required value="claude-sonnet-5-5" autocomplete="off" placeholder="claude-sonnet-5-5" maxlength="200" />
           <ul class="combo-list" id="model-list" hidden>
             {% for m in models %}
             <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
             {% endfor %}
           </ul>
         </div>
-        <p class="hint">{{ lt(locale, 'Можно выбрать из списка или ввести кастомное имя модели relay.', 'Pick from the list or type a custom relay model name.', '可从列表选择，也可输入 relay 的自定义模型名。') }}</p>
+        <p class="hint">{{ lt(locale, 'Выберите из списка или введите любое имя модели. После ввода ключа список подгрузится автоматически.', 'Choose from the list or type any model ID. Models auto-load after entering your key.', '可选择或手动输入模型名；填入密钥后会自动探测可用列表。') }}</p>
       </div>
       <div class="field">
         <label for="mode">{{ lt(locale, 'Глубина проверки', 'Check depth', '检测深度') }}</label>
         <select id="mode" name="mode">
-          <option value="quick">{{ lt(locale, 'Быстрая (~15 сек, 5 проверок)', 'Quick (~15s, 5 checks)', '快速 (~15 秒,5 项)') }}</option>
-          <option value="standard">{{ lt(locale, 'Стандарт (~45 сек, 9 проверок)', 'Standard (~45s, 9 checks)', '标准 (~45 秒,9 项)') }}</option>
-          <option value="full" selected>{{ lt(locale, 'Полная (~75 сек, все проверки)', 'Full (~75s, all checks)', '完整 (~75 秒,全部检测)') }}</option>
+          <option value="quick">{{ lt(locale, 'Быстрая (~15 сек, 5 проверок)', 'Quick (~15s, 5 checks)', '快速 (~15 秒, 5 项)') }}</option>
+          <option value="standard">{{ lt(locale, 'Стандарт (~45 сек, 9 проверок)', 'Standard (~45s, 9 checks)', '标准 (~45 秒, 9 项)') }}</option>
+          <option value="full" selected>{{ lt(locale, 'Полная (~75 сек, все проверки)', 'Full (~75s, all checks)', '完整 (~75 秒, 全部检测)') }}</option>
         </select>
       </div>
     </div>
@@ -57,33 +69,33 @@
     <div class="field-checkbox">
       <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
       <label for="include_long_context">
-        <strong>{{ lt(locale, 'Проверка long context', 'Long-context check', '长上下文真实性') }}</strong>
-        <span class="checkbox-hint">{{ lt(locale, 'Дополнительные 32k -> 100k -> 200k probes. Может стоить дороже и оплачивается вашим API key.', 'Extra 32k -> 100k -> 200k probes. This can cost more and is paid by your API key.', '额外发送 32k -> 100k -> 200k 探针，成本更高，由你的 API key 支付。') }}</span>
+        <strong>{{ lt(locale, 'Проверка длинного контекста (32k → 200k)', 'Long-context check (32k → 200k)', '长上下文真实性 (32k → 200k)') }}</strong>
+        <span class="checkbox-hint">{{ lt(locale, 'Дополнительные needle-in-haystack запросы. Расходует больше токенов на вашем ключе.', 'Extra needle-in-haystack probes. Uses more tokens on your API key.', '额外发送大海捞针探针，消耗更多 token，由你的 API key 支付。') }}</span>
       </label>
     </div>
 
     <div class="field-checkbox">
       <input type="checkbox" id="include_long_context_extreme" name="include_long_context_extreme" value="true" />
       <label for="include_long_context_extreme">
-        <strong>{{ lt(locale, 'Extreme context', 'Extreme context', '极限 context') }}</strong>
-        <span class="checkbox-hint">{{ lt(locale, 'Проверяет ближе к заявленному лимиту модели. Для больших моделей может быть дорогим.', 'Tests closer to the model advertised limit. Can be expensive for large models.', '接近模型宣称上限检测，大模型成本可能很高。') }}</span>
+        <strong>{{ lt(locale, 'Экстремальный контекст (до 950k)', 'Extreme context (up to 950k)', '极限长上下文 (最高 950k)') }}</strong>
+        <span class="checkbox-hint">{{ lt(locale, 'Проверяет реальное окно вплоть до заявленного лимита 1M. Может стоить ощутимо дороже.', 'Tests near the full advertised 1M window. Can be significantly more expensive.', '接近模型 1M 上限检测，费用较高，请按需开启。') }}</span>
       </label>
     </div>
 
-    <button type="submit" id="submit-btn" class="btn btn-primary">{{ lt(locale, 'Начать проверку', 'Start check', '开始检测') }}</button>
+    <button type="submit" id="submit-btn" class="btn btn-primary btn-submit">{{ lt(locale, 'Начать проверку', 'Start check', '开始检测') }}</button>
     <p class="form-error" id="form-error" hidden></p>
   </form>
 </section>
 
 <section class="features">
-  <div class="feature"><h3>{{ lt(locale, 'Thinking signature', 'Thinking signature', 'Thinking signature') }}</h3><p>{{ lt(locale, 'Серверная подпись Anthropic — самый сильный сигнал подлинного Claude.', 'Anthropic server-side signature is the strongest Claude authenticity signal.', 'Anthropic 服务端签名是 Claude 最强真伪信号。') }}</p></div>
-  <div class="feature"><h3>{{ lt(locale, 'Protocol baseline', 'Protocol baseline', '协议基线') }}</h3><p>{{ lt(locale, 'Проверяются message id, tool use, stream/non-stream consistency и usage.', 'Checks message IDs, tool use, stream/non-stream consistency, and usage.', '检查 message id、tool use、stream/non-stream 一致性和 usage。') }}</p></div>
-  <div class="feature"><h3>{{ lt(locale, 'Shareable report', 'Shareable report', '可分享报告') }}</h3><p>{{ lt(locale, 'После проверки доступен постоянный HTML URL и JPG-отчёт.', 'After the check you get a permanent HTML URL and JPG report.', '检测后获得永久 HTML URL 和 JPG 报告。') }}</p></div>
+  <div class="feature"><h3>{{ lt(locale, 'Thinking signature', 'Thinking signature', 'Thinking signature') }}</h3><p>{{ lt(locale, 'Серверная криптоподпись Anthropic — самый надёжный признак оригинального Claude.', 'Anthropic server-side signature is the strongest Claude authenticity signal.', 'Anthropic 服务端签名是 Claude 最强真伪信号。') }}</p></div>
+  <div class="feature"><h3>{{ lt(locale, 'Протокол и инструменты', 'Protocol & tools', '协议与工具基线') }}</h3><p>{{ lt(locale, 'Проверяет префиксы msg_/toolu_, tool_use, PDF, stream/non-stream и usage.', 'Checks msg_/toolu_ IDs, tool_use, PDF, stream/non-stream parity, and usage.', '检查 msg_/toolu_ ID、tool_use、PDF、流式一致性和 usage。') }}</p></div>
+  <div class="feature"><h3>{{ lt(locale, 'Отчёт и JPG-карточка', 'Shareable report + JPG', '永久报告与 JPG 卡片') }}</h3><p>{{ lt(locale, 'После завершения выдаётся постоянный URL /r/{id} и готовая картинка JPG.', 'Generates a permanent /r/{id} URL and a ready-to-share JPG report card.', '完成后生成永久链接 /r/{id} 与高清 JPG 分享图。') }}</p></div>
 </section>
 
 <section class="faq" id="faq" data-mode="layperson">
   <div class="faq-header">
-    <h2>{{ lt(locale, 'FAQ', 'FAQ', '常见问题') }}</h2>
+    <h2>{{ lt(locale, 'Частые вопросы', 'FAQ', '常见问题') }}</h2>
     <div class="faq-mode-toggle" role="tablist" aria-label="{{ lt(locale, 'Стиль ответа', 'Answer style', '回答风格') }}">
       <button type="button" role="tab" aria-selected="true" class="faq-mode-btn faq-mode-active" data-mode="layperson">{{ lt(locale, 'Просто', 'Simple', '通俗解释') }}</button>
       <button type="button" role="tab" aria-selected="false" class="faq-mode-btn" data-mode="developer">{{ lt(locale, 'Технически', 'Technical', '开发者技术') }}</button>
@@ -91,21 +103,21 @@
   </div>
 
   <details class="faq-item" open>
-    <summary>{{ lt(locale, 'Что такое thinking signature?', 'What is thinking signature?', 'thinking signature 是什么？') }}</summary>
+    <summary>{{ lt(locale, 'Что такое thinking signature?', 'What is a thinking signature?', 'thinking signature 是什么？') }}</summary>
     <div class="faq-body">
-      <p data-mode="layperson">{{ lt(locale, 'Это как серверная печать Anthropic на thinking-блоке Claude. Relay не должен уметь сделать такую подпись сам.', 'It is like an Anthropic server stamp on Claude thinking blocks. A relay should not be able to create it by itself.', '它像 Anthropic 给 Claude thinking 块盖的服务端印章，relay 理论上无法自己生成。') }}</p>
-      <p data-mode="developer">{{ lt(locale, 'Detector проверяет наличие, форму и длину signature в extended/adaptive thinking response и учитывает это как ключевой сигнал.', 'The detector checks signature presence, shape, and length in extended/adaptive thinking responses and treats it as a key signal.', 'detector 检查 extended/adaptive thinking response 中 signature 的存在、形状和长度，并作为核心信号。') }}</p>
+      <p data-mode="layperson">{{ lt(locale, 'Это криптографическая печать серверов Anthropic на блоке размышлений Claude. Сторонний релей не может сгенерировать её самостоятельно.', 'It is a cryptographic stamp from Anthropic servers on Claude thinking blocks. A third-party relay cannot generate it on its own.', '它像 Anthropic 给 Claude thinking 块盖的服务端印章，中转站理论上无法伪造。') }}</p>
+      <p data-mode="developer">{{ lt(locale, 'Детектор отправляет адаптивный или extended thinking запрос и проверяет наличие, формат и длину поля content[*].signature в ответе.', 'The detector sends an adaptive or extended thinking request and verifies the presence, format, and length of content[*].signature.', '检测器发起 adaptive/extended thinking 请求，并校验返回中 content[*].signature 的存在性、格式与长度。') }}</p>
     </div>
   </details>
 
   <details class="faq-item">
-    <summary>{{ lt(locale, 'Clodex сохраняет мой API key?', 'Does Clodex store my API key?', 'Clodex 会保存我的 API key 吗？') }}</summary>
+    <summary>{{ lt(locale, 'CLODEX Check сохраняет мой API-ключ?', 'Does CLODEX Check store my API key?', 'CLODEX Check 会保存我的 API key 吗？') }}</summary>
     <div class="faq-body">
-      <p data-mode="layperson">{{ lt(locale, 'Нет. Key используется во время job-а и затем удаляется из памяти. В отчёте остаётся только маска.', 'No. The key is used during the job and then removed from memory. Reports keep only a masked form.', '不会。key 只在 job 期间使用，随后从内存移除；报告只保留脱敏形式。') }}</p>
-      <p data-mode="developer">{{ lt(locale, 'Key не сериализуется в report JSON и не должен попадать в persistent storage. Это можно проверить в открытом коде.', 'The key is not serialized into report JSON and should not reach persistent storage. This can be audited in the open code.', 'key 不序列化进 report JSON，也不进入持久存储；可在开源代码中审计。') }}</p>
+      <p data-mode="layperson">{{ lt(locale, 'Нет. Ключ используется только для отправки проверочных запросов и сразу удаляется из памяти. В отчёте остаётся только маска.', 'No. The key is used only while running the check and discarded immediately afterward. Only a masked version appears in reports.', '不会。key 仅用于发送检测请求，完成后立即从内存移除，报告仅保留掩码。') }}</p>
+      <p data-mode="developer">{{ lt(locale, 'Ключ никогда не сериализуется в report JSON и не пишется на диск. Это можно проверить в открытом репозитории на GitHub.', 'The raw key is never serialized into report JSON or persisted to disk. You can verify this in the public GitHub repository.', '原始 key 不会序列化到 report JSON 或写入磁盘，可在 GitHub 开源代码中逐行核对。') }}</p>
     </div>
   </details>
 
-  <p class="faq-more">{{ lt(locale, 'Больше вопросов:', 'More questions:', '更多问题：') }} <a href="{{ with_lang('/faq#claude', locale) }}">/faq#claude</a></p>
+  <p class="faq-more">{{ lt(locale, 'Все вопросы и ответы:', 'More questions:', '更多问题：') }} <a href="{{ with_lang('/faq#claude', locale) }}">{{ lt(locale, 'Открыть FAQ →', 'Open FAQ →', '查看完整 FAQ →') }}</a></p>
 </section>
 {% endblock %}

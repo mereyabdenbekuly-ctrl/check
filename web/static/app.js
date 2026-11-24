@@ -299,6 +299,26 @@
     runProbe();
   });
 
+  // One-click preset fill (e.g. "Use clodex.xyz")
+  document.querySelectorAll('.preset-btn[data-preset-url]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const presetUrl = btn.getAttribute('data-preset-url');
+      const presetModel = btn.getAttribute('data-preset-model');
+      if (presetUrl) {
+        baseUrlInput.value = presetUrl;
+        lastKey = null;
+      }
+      if (presetModel && modelInput) {
+        modelInput.value = presetModel;
+      }
+      if (apiKeyInput.value.trim().length >= 8) {
+        runProbe();
+      } else {
+        apiKeyInput.focus();
+      }
+    });
+  });
+
   // Cross-protocol handoff: if we landed here from another protocol page,
   // pre-fill the form and immediately probe. Single-shot — clear after read
   // so a refresh doesn't reuse the key.

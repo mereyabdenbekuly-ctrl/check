@@ -40,7 +40,7 @@
       if (j.status === 'error') {
         headline.textContent = {{ lt(locale, 'Проверка не удалась', 'Detection failed', '检测失败') | tojson }};
         errBox.hidden = false;
-        errBox.textContent = j.error || {{ lt(locale, '未知错误', 'Unknown error', '未知错误') | tojson }};
+        errBox.textContent = j.error || {{ lt(locale, 'Неизвестная ошибка', 'Unknown error', '未知错误') | tojson }};
         return;
       }
       if (j.status === 'running') {

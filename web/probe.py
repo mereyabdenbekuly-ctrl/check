@@ -41,6 +41,10 @@ def _classify(model_id: str) -> str | None:
     if not isinstance(model_id, str) or not model_id:
         return None
     s = model_id.strip().lower().removeprefix("models/")
+    # Exclude non-chat media/video models so probing multi-modal relays does
+    # not pollute text/chat protocol dropdowns.
+    if s.startswith(("clodex-video/", "gpt-image-", "gpt-audio-", "gpt-realtime-")):
+        return None
     if s.startswith("claude") or "/claude" in s:
         return "anthropic"
     if s.startswith("gemini") or "/gemini" in s:

@@ -177,7 +177,7 @@ def validate_responses_api(
     t = RESPONSES_TEMPLATE
 
     _check_top_level(payload, t, issues)
-    _check_chat_id(payload.get("id"), t.id_prefix, "$.id", issues)
+    _check_id(payload.get("id"), t.id_prefix, "$.id", issues)
     _check_eq(payload.get("object"), t.response_object, "$.object", issues)
     _check_nonneg_int(payload.get("created_at"), "$.created_at", issues)
 
@@ -231,7 +231,7 @@ def validate_chat_completion(
     t = CHAT_COMPLETIONS_TEMPLATE
 
     _check_top_level(payload, t, issues)
-    _check_id(payload.get("id"), t.id_prefix, "$.id", issues)
+    _check_chat_id(payload.get("id"), t.id_prefix, "$.id", issues)
     _check_eq(payload.get("object"), t.response_object, "$.object", issues)
     _check_nonneg_int(payload.get("created"), "$.created", issues)
     _check_model(payload.get("model"), request_model, "$.model", issues)

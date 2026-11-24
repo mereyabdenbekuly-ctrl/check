@@ -47,8 +47,8 @@ SIGNATURE_MIN_LEN = 50
 
 
 def _adaptive_effort_for_model(model: str) -> str:
-    normalized = model.replace(".", "-").replace("_", "-")
-    if normalized.startswith(("claude-opus-4-7", "claude-opus-4-8")):
+    normalized = model.strip().lower().replace(".", "-").replace("_", "-")
+    if normalized.startswith(("claude-opus-5", "claude-opus-4-7", "claude-opus-4-8")):
         return "xhigh"
     return "high"
 

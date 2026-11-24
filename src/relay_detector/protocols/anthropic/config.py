@@ -72,6 +72,86 @@ class ModelInfo:
 
 
 MODELS: dict[str, ModelInfo] = {
+    "claude-opus-5-5": ModelInfo(
+        alias="claude-opus-5-5",
+        aliases=("claude-opus-5-5",),
+        context_tokens=1_000_000,
+        max_output_tokens=128_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-opus-5": ModelInfo(
+        alias="claude-opus-5",
+        aliases=("claude-opus-5",),
+        context_tokens=1_000_000,
+        max_output_tokens=128_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-sonnet-5-5": ModelInfo(
+        alias="claude-sonnet-5-5",
+        aliases=("claude-sonnet-5-5",),
+        context_tokens=1_000_000,
+        max_output_tokens=64_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-sonnet-5": ModelInfo(
+        alias="claude-sonnet-5",
+        aliases=("claude-sonnet-5",),
+        context_tokens=1_000_000,
+        max_output_tokens=64_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-haiku-5-5": ModelInfo(
+        alias="claude-haiku-5-5",
+        aliases=("claude-haiku-5-5",),
+        context_tokens=200_000,
+        max_output_tokens=64_000,
+        pdf_page_max=100,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-fable-5-2": ModelInfo(
+        alias="claude-fable-5-2",
+        aliases=("claude-fable-5-2",),
+        context_tokens=1_000_000,
+        max_output_tokens=64_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-fable-5-1": ModelInfo(
+        alias="claude-fable-5-1",
+        aliases=("claude-fable-5-1",),
+        context_tokens=1_000_000,
+        max_output_tokens=64_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
+    "claude-fable-5": ModelInfo(
+        alias="claude-fable-5",
+        aliases=("claude-fable-5",),
+        context_tokens=1_000_000,
+        max_output_tokens=64_000,
+        pdf_page_max=600,
+        supports_extended_thinking=False,
+        supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ),
     "claude-opus-4-8": ModelInfo(
         alias="claude-opus-4-8",
         aliases=("claude-opus-4-8",),
@@ -162,13 +242,29 @@ def _normalize_model_id(model_id: str) -> str:
 
 
 def lookup_model(model_id: str) -> ModelInfo | None:
-    """Match the user-supplied model ID against known aliases (double-prefix).
+    """Match the user-supplied model ID against known aliases.
 
-    Accepts both alias (`claude-opus-4-7`) and snapshot
-    (`claude-haiku-4-5-20251001`) forms, and tolerates dot-vs-hyphen
-    variants (`claude-sonnet-4.5` ≡ `claude-sonnet-4-5`).
+    Prefers exact match, then longest boundary-aligned prefix (`alias-`),
+    then bidirectional prefix fallback, tolerating dot-vs-hyphen variants
+    (`claude-opus-5.5` ≡ `claude-opus-5-5`).
     """
-    nid = _normalize_model_id(model_id)
+    nid = _normalize_model_id(model_id.strip().lower())
+    for info in MODELS.values():
+        for alias in info.aliases:
+            if nid == _normalize_model_id(alias):
+                return info
+
+    best_info: ModelInfo | None = None
+    best_len = -1
+    for info in MODELS.values():
+        for alias in info.aliases:
+            nalias = _normalize_model_id(alias)
+            if nid.startswith(nalias + "-") and len(nalias) > best_len:
+                best_info = info
+                best_len = len(nalias)
+    if best_info is not None:
+        return best_info
+
     for info in MODELS.values():
         for alias in info.aliases:
             nalias = _normalize_model_id(alias)

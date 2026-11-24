@@ -27,7 +27,13 @@ def default_model() -> str:
 # after a probe — Haiku is universal, Sonnet is the next-best fallback.
 _PREFERRED_DEFAULTS = (
     "claude-haiku-4-5",
+    "claude-haiku-5-5",
+    "claude-sonnet-5-5",
+    "claude-sonnet-5",
     "claude-sonnet-4-6",
+    "claude-opus-5-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-haiku-3-5",

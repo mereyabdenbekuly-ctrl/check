@@ -10,6 +10,7 @@ SEO 价值:用户搜「XX relay怎么样」时,leaderboard 页面包含该域名
 from __future__ import annotations
 
 import json
+import os
 import re
 import statistics
 from collections import Counter, defaultdict
@@ -20,11 +21,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 
+_JOBS_BASE = Path(os.environ.get("VERIDROP_JOBS_DIR", "/opt/veridrop/web_data/jobs"))
+
 REPORT_DIRS = [
-    Path("/opt/veridrop/web_data/jobs/anthropic"),
-    Path("/opt/veridrop/web_data/jobs/openai"),
-    Path("/opt/veridrop/web_data/jobs/gemini"),
-    Path("/opt/veridrop/web_data/jobs"),  # legacy top-level
+    _JOBS_BASE / "anthropic",
+    _JOBS_BASE / "openai",
+    _JOBS_BASE / "gemini",
+    _JOBS_BASE,  # legacy top-level
 ]
 
 PROTOCOL_LABELS = {"anthropic": "Claude", "openai": "OpenAI", "gemini": "Gemini"}

@@ -28,7 +28,9 @@ from .i18n import (
     result_caption,
     status_short,
     t as tr,
+    tier_banner_for_locale,
     ui as ui_copy,
+    verdict_labels_for_locale,
     with_lang,
 )
 from .faq_data import categories as faq_categories, faqpage_jsonld, total_question_count
@@ -115,18 +117,15 @@ def _protocol_from_model(model: str) -> str:
 
 
 def _model_choices() -> list[dict[str, str]]:
-    """Curated dropdown — 4 most-tested model names. Free-form input still
-    accepts anything; lookup_model() prefix-matches snapshot/alias forms.
-
-    We keep it short on purpose:
-    - Opus 4.7 + Opus 4.6: top-tier choices
-    - Sonnet 4.6: most popular
-    - Haiku 4.5 in snapshot form (-20251001) because some relays only route
-      the snapshot ID, not the bare alias.
+    """Curated dropdown — current flagship + stable Claude models. Free-form
+    input still accepts anything; lookup_model() matches snapshot/alias forms.
     """
     suggestions = [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
+        "claude-opus-4-8",
         "claude-opus-4-7",
-        "claude-opus-4-6",
         "claude-sonnet-4-6",
         "claude-haiku-4-5-20251001",
     ]
@@ -200,6 +199,7 @@ async def leaderboard_page(
     rest_start = (page - 1) * _LEADERBOARD_PER_PAGE
     rest_page_items = rest[rest_start:rest_start + _LEADERBOARD_PER_PAGE]
 
+    locale = detect_locale(request)
     return _render(
         request,
         "leaderboard.html",
@@ -211,7 +211,7 @@ async def leaderboard_page(
         total_pages=total_pages,
         has_rest=total_rest > 0,
         protocol_labels=leaderboard.PROTOCOL_LABELS,
-        verdict_labels=leaderboard.VERDICT_LABELS,
+        verdict_labels=verdict_labels_for_locale(locale),
     )
 
 
@@ -240,6 +240,7 @@ async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse
                 seen_names.add(name)
     failed_summary.sort(key=lambda x: x[1], reverse=True)
 
+    locale = detect_locale(request)
     return _render(
         request,
         "leaderboard_detail.html",
@@ -247,7 +248,7 @@ async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse
         history=history,
         failed_summary=failed_summary[:8],
         protocol_labels=leaderboard.PROTOCOL_LABELS,
-        verdict_labels=leaderboard.VERDICT_LABELS,
+        verdict_labels=verdict_labels_for_locale(locale),
     )
 
 
@@ -572,22 +573,22 @@ async def api_result_json(job_id: str) -> JSONResponse:
 # path params match `[^/]+` greedily so `/r/{job_id}` would otherwise swallow
 # `/r/foo.jpg` (job_id="foo.jpg") and shadow the image endpoint.
 @app.get("/r/{job_id}.jpg")
-async def result_jpg(job_id: str) -> Response:
+async def result_jpg(request: Request, job_id: str) -> Response:
     j = await jobs.get(job_id)
     if j is None or j.status != "done" or j.report is None:
         raise HTTPException(status_code=404, detail="result not ready")
 
-    # Cache the JPG next to the JSON. Detection report is immutable, so once
-    # generated we always serve from disk to spare the CPU.
-    cache_path = jobs.image_path(job_id, j.protocol)
+    locale = detect_locale(request)
+    base_cache = jobs.image_path(job_id, j.protocol)
+    cache_path = base_cache.with_name(f"{job_id}.{locale}.v2.jpg")
     if not cache_path.exists():
-        png_bytes = render_report_jpg(j.report)
-        cache_path.write_bytes(png_bytes)
+        jpg_bytes = render_report_jpg(j.report, locale=locale)
+        cache_path.write_bytes(jpg_bytes)
     return Response(
         content=cache_path.read_bytes(),
         media_type="image/jpeg",
         headers={
-            "Content-Disposition": f'inline; filename="veridrop-{job_id}.jpg"',
+            "Content-Disposition": f'inline; filename="clodex-check-{job_id}.jpg"',
             "Cache-Control": "public, max-age=86400",
         },
     )
@@ -601,14 +602,12 @@ _VERDICT_LABELS = {
 }
 
 
-def _seo_meta_for_report(report: dict, locale: str) -> dict[str, str]:
+def _seo_meta_for_report(report: dict, locale: str = "ru") -> dict[str, str]:
     """Compute SEO title + description from a finished report.
 
-    Each `/r/{job_id}` is a permanent landing page; without per-report meta,
-    every report shows the same generic description and Google can't tell
-    them apart for long-tail "what does relay X look like" queries. With
-    domain + score + verdict in the meta, each one becomes its own indexable
-    page.
+    Each `/r/{job_id}` is a permanent landing page; embedding domain + model
+    + score + verdict makes reports across different models on the same relay
+    distinct indexable pages.
     """
     base_url = str(report.get("base_url") or "")
     domain = base_url
@@ -619,7 +618,7 @@ def _seo_meta_for_report(report: dict, locale: str) -> dict[str, str]:
     protocol = str(report.get("protocol") or "anthropic")
     proto_label = _PROTOCOL_LABELS.get(protocol, protocol)
 
-    model = str(report.get("target_model") or "")
+    model = str(report.get("target_model") or "").strip()
     score = float(report.get("total_score") or 0)
     verdict = str(report.get("verdict") or "failed")
     verdict_label = _VERDICT_LABELS.get(locale, _VERDICT_LABELS["ru"]).get(verdict, verdict)
@@ -629,13 +628,18 @@ def _seo_meta_for_report(report: dict, locale: str) -> dict[str, str]:
     fail_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "fail")
     total = len(results)
 
-    title = tr(locale, "seo_report_title").format(
-        domain=domain, protocol=proto_label, score=score, verdict=verdict_label
-    )
+    if model:
+        title = tr(locale, "seo_report_title_model").format(
+            domain=domain, protocol=proto_label, model=model, score=score, verdict=verdict_label
+        )
+    else:
+        title = tr(locale, "seo_report_title").format(
+            domain=domain, protocol=proto_label, score=score, verdict=verdict_label
+        )
     description = tr(locale, "seo_report_description").format(
         domain=domain,
         protocol=proto_label,
-        model=model,
+        model=model or "-",
         score=score,
         verdict=verdict_label,
         total=total,
@@ -660,26 +664,27 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     if j.status != "done" or j.report is None:
         return _render(request, "running.html", job_id=job_id, job=j)
     locale = detect_locale(request)
-    # Domain feeds the breadcrumb (首页 › 红黑榜 › {domain} › 报告).
-    # Goes through is_valid_domain so a malformed base_url doesn't produce
-    # a broken /leaderboard/{garbage} link.
     base_url = str(j.report.get("base_url") or "")
     domain = leaderboard._extract_domain(base_url)  # noqa: SLF001
     if domain and not leaderboard.is_valid_domain(domain):
         domain = ""
+    protocol = str(j.report.get("protocol") or "anthropic")
+    tier_title, tier_message = tier_banner_for_locale(locale, protocol)
     return _render(
         request,
         "result.html",
         job_id=job_id,
         report=j.report,
         rows=_result_rows_for_locale(j.report, locale),
-        report_notes=_report_notes(j.report),
+        report_notes=_report_notes(j.report, locale),
+        tier_title=tier_title,
+        tier_message=tier_message,
         breadcrumb_domain=domain,
         caption=result_caption(
             locale,
             float(j.report.get("total_score") or 0),
             str(j.report.get("verdict") or "failed"),
-            str(j.report.get("protocol") or "anthropic"),
+            protocol,
         ),
         **_seo_meta_for_report(j.report, locale),
     )
@@ -725,10 +730,10 @@ _STATIC_SITEMAP_URLS = [
 ]
 
 _SITEMAP_REPORT_DIRS = [
-    Path("/opt/veridrop/web_data/jobs/anthropic"),
-    Path("/opt/veridrop/web_data/jobs/openai"),
-    Path("/opt/veridrop/web_data/jobs/gemini"),
-    Path("/opt/veridrop/web_data/jobs"),  # legacy top-level
+    jobs.JOBS_DIR / "anthropic",
+    jobs.JOBS_DIR / "openai",
+    jobs.JOBS_DIR / "gemini",
+    jobs.JOBS_DIR,  # legacy top-level
 ]
 
 
@@ -898,18 +903,13 @@ def _result_rows_for_locale(report: dict, locale: str) -> list[dict]:
     return out
 
 
-def _report_notes(report: dict) -> list[dict[str, str]]:
-    """Human-readable report notes for the result page.
-
-    These are deliberately plain Chinese explanations. The raw detector JSON
-    is useful for debugging, but public reports need to say what happened in
-    terms a non-implementer can act on.
-    """
+def _report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
+    """Human-readable localized report notes for the result page."""
     protocol = str(report.get("protocol") or "anthropic")
     if protocol == "gemini":
-        return _gemini_report_notes(report)
+        return _gemini_report_notes(report, locale)
     if protocol == "anthropic":
-        return _anthropic_report_notes(report)
+        return _anthropic_report_notes(report, locale)
     if protocol != "openai":
         return []
 
@@ -925,28 +925,26 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
         text = str(sd.get("response_text") or "").strip().replace("\n", " ")
         if len(text) > 180:
             text = text[:180] + "..."
-        # Two distinct failure modes — different actionable signals:
-        # - Markdown-fenced JSON: relay forwarded response_format and the
-        #   model attempted JSON, but produced a code-fenced block instead of
-        #   raw JSON. Likely a model behavior / weak strict-mode honoring.
-        # - No JSON at all: the response_format was probably stripped by the
-        #   relay's adapter layer.
         markdown_seen = bool(sd.get("markdown_json_seen"))
         if markdown_seen:
-            message = (
-                "底层模型把 JSON 包在 Markdown 代码块里(```json ... ```),"
-                "OpenAI strict 模式应该返回裸 JSON。说明 response_format 被透传了,"
-                "但底层模型没有真正理解 strict 模式 — 通常是relay把请求转给了非 GPT 模型。"
+            message = lt(
+                locale,
+                "Модель обернула JSON в Markdown-блок (```json ... ```), хотя в OpenAI strict-режиме должен возвращаться чистый JSON. Обычно это означает, что параметр response_format дошёл, но на стороне провайдера отвечает не строгий GPT-бэкенд.",
+                "The model wrapped JSON in a Markdown code fence (```json ... ```) instead of returning raw JSON under OpenAI strict mode. This typically suggests a non-strict or substituted backend.",
+                "底层模型把 JSON 包在 Markdown 代码块里(```json ... ```),OpenAI strict 模式应该返回裸 JSON。说明 response_format 被透传了,但底层模型没有真正理解 strict 模式 — 通常是relay把请求转给了非 GPT 模型。",
             )
         else:
-            message = (
-                "返回的不是 JSON 也没有代码块包装。请求已发送 "
-                "response_format=json_schema strict=true,但relay很可能根本没把这个参数透传给后端。"
+            message = lt(
+                locale,
+                "Ответ не является валидным JSON. Запрос отправлялся с response_format=json_schema (strict=true), но relay, вероятно, отбросил этот параметр при пересылке.",
+                "The response is not valid JSON. The request sent response_format=json_schema (strict=true), so the relay likely stripped this parameter before forwarding.",
+                "返回的不是 JSON 也没有代码块包装。请求已发送 response_format=json_schema strict=true,但relay很可能根本没把这个参数透传给后端。",
             )
         if text:
-            message += f" 实际返回片段: {text}"
+            excerpt_prefix = lt(locale, " Фрагмент ответа: ", " Response excerpt: ", " 实际返回片段: ")
+            message += f"{excerpt_prefix}{text}"
         notes.append({
-            "title": "结构化输出没有真正生效",
+            "title": lt(locale, "Structured Output не сработал", "Structured output did not take effect", "结构化输出没有真正生效"),
             "body": message,
         })
 
@@ -966,27 +964,26 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
         "usage_source_non_openai",
     }
     if impersonation_codes:
-        # Critical-severity adapter fingerprints — the relay is almost
-        # certainly translating from a different upstream backend.
         notes.append({
-            "title": "relay疑似伪装成 OpenAI",
-            "body": (
-                "响应的 usage 字段里出现了 Anthropic / Google 后端才会用的字段(如 "
-                "claude_cache_creation_*、gemini_* 或 usage_source 自报非 openai)。"
-                "这强烈暗示relay把你的请求转发给了别的厂商后端再包装成 OpenAI 响应,"
-                "所谓的 GPT 输出可能并非真正的 OpenAI 模型在生成。"
+            "title": lt(locale, "Подозрение на подмену бэкенда под OpenAI", "Suspected non-OpenAI backend masquerading as OpenAI", "relay疑似伪装成 OpenAI"),
+            "body": lt(
+                locale,
+                "В поле usage обнаружены поля, характерные для Anthropic или Google (например, claude_cache_creation_*, gemini_* или usage_source != openai). Это сильный признак переупаковки ответа от другого провайдера.",
+                "The usage object contains Anthropic or Google-specific fields (e.g. claude_cache_creation_*, gemini_*, or a non-openai usage_source). This strongly suggests the relay is translating from another vendor's backend.",
+                "响应的 usage 字段里出现了 Anthropic / Google 后端才会用的字段(如 claude_cache_creation_*、gemini_* 或 usage_source 自报非 openai)。这强烈暗示relay把你的请求转发给了别的厂商后端再包装成 OpenAI 响应。",
             ),
         })
     elif "usage_mixed_token_fields" in issue_codes:
-        # Lower-severity: just naming residue, may or may not mean translation.
         notes.append({
-            "title": "响应里有适配层痕迹",
-            "body": (
-                "返回的 usage 同时含有 OpenAI 的 prompt_tokens/completion_tokens 和 "
-                "Anthropic/Responses 风格的 input_tokens/output_tokens。"
-                "通常说明中间有转换层,但还不足以确认换了后端。"
+            "title": lt(locale, "Обнаружены следы адаптера в usage", "Adapter layer traces in usage fields", "响应里有适配层痕迹"),
+            "body": lt(
+                locale,
+                "В usage одновременно присутствуют поля Chat Completions (prompt_tokens/completion_tokens) и Responses/Anthropic (input_tokens/output_tokens). Это указывает на слой трансляции, но само по себе не доказывает подмену модели.",
+                "The usage object mixes Chat Completions counters (prompt_tokens/completion_tokens) with Responses/Anthropic fields (input_tokens/output_tokens). This indicates a translation layer, though not necessarily model substitution.",
+                "返回的 usage 同时含有 OpenAI 的 prompt_tokens/completion_tokens 和 Anthropic/Responses 风格的 input_tokens/output_tokens。通常说明中间有转换层,但还不足以确认换了后端。",
             ),
         })
+
     token_billing = results.get("token_billing") or {}
     td = (
         token_billing.get("details")
@@ -996,26 +993,28 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
     if token_billing:
         if token_billing.get("status") == "skip":
             notes.append({
-                "title": "暂时无法判断 Token 是否虚报",
-                "body": (
-                    "接口没有给出足够完整的 Token 用量信息,所以这次不能确认它有没有多算。"
+                "title": lt(locale, "Не удалось проверить корректность биллинга токенов", "Unable to verify token billing accuracy", "暂时无法判断 Token 是否虚报"),
+                "body": lt(
+                    locale,
+                    "Эндпоинт не вернул достаточно полные поля usage, поэтому невозможно достоверно сверить подсчёт токенов.",
+                    "The endpoint did not return complete token usage fields, so token counting accuracy could not be verified.",
+                    "接口没有给出足够完整的 Token 用量信息,所以这次不能确认它有没有多算。",
                 ),
             })
         elif token_billing.get("status") != "pass":
             notes.append({
-                "title": "Token 计费存在风险",
-                "body": td.get("evaluation_zh") or (
-                    "Token 统计有明显偏差,建议留意是否存在多算或统计错误。"
+                "title": lt(locale, "Риск расхождения в учёте токенов", "Token billing discrepancy detected", "Token 计费存在风险"),
+                "body": (td.get("evaluation_zh") if locale == "zh" else None) or lt(
+                    locale,
+                    "Статистика токенов в ответах расходится с ожидаемыми значениями. Рекомендуется перепроверить биллинг у провайдера.",
+                    "Reported token counts diverge noticeably from expected values. Double-check provider billing accuracy.",
+                    "Token 统计有明显偏差,建议留意是否存在多算或统计错误。",
                 ),
             })
-        # Note: when token_billing passes, the green check in the detector
-        # list already conveys this. We deliberately don't add a redundant
-        # "Token 计费正常" note — report notes should only carry signal that
-        # needs user attention.
     return notes
 
 
-def _anthropic_report_notes(report: dict) -> list[dict[str, str]]:
+def _anthropic_report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
     results = {
         r.get("name"): r for r in report.get("results") or []
         if isinstance(r, dict)
@@ -1030,20 +1029,28 @@ def _anthropic_report_notes(report: dict) -> list[dict[str, str]]:
         return []
     if token_usage.get("status") == "skip":
         return [{
-            "title": "暂时无法判断 Token 是否虚报",
-            "body": "接口没有返回完整 usage 字段,所以这次不能确认它有没有多算。",
+            "title": lt(locale, "Не удалось проверить корректность учёта токенов", "Unable to verify token usage", "暂时无法判断 Token 是否虚报"),
+            "body": lt(
+                locale,
+                "Эндпоинт не вернул полные поля usage, поэтому сверка расхода токенов была пропущена.",
+                "The endpoint did not return complete usage fields, so token usage verification was skipped.",
+                "接口没有返回完整 usage 字段,所以这次不能确认它有没有多算。",
+            ),
         }]
     if token_usage.get("status") != "pass":
         return [{
-            "title": "Token 用量存在风险",
-            "body": td.get("evaluation_zh") or (
-                "usage 字段缺失或统计不自洽,建议不要直接依赖该relay返回的 token 数做计费核算。"
+            "title": lt(locale, "Риск расхождения в полях usage", "Token usage discrepancy risk", "Token 用量存在风险"),
+            "body": (td.get("evaluation_zh") if locale == "zh" else None) or lt(
+                locale,
+                "Поля usage отсутствуют или не согласуются между запросами. Не стоит полагаться на эти счётчики для точного биллинга.",
+                "Usage fields are incomplete or inconsistent across requests. Avoid relying on these counters for billing reconciliation.",
+                "usage 字段缺失或统计不自洽,建议不要直接依赖该relay返回的 token 数做计费核算。",
             ),
         }]
     return []
 
 
-def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
+def _gemini_report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
     results = {
         r.get("name"): r for r in report.get("results") or []
         if isinstance(r, dict)
@@ -1054,10 +1061,12 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
     sd = structured.get("details") if isinstance(structured.get("details"), dict) else {}
     if structured.get("status") != "pass":
         notes.append({
-            "title": "结构化输出没有真正生效",
-            "body": sd.get("evaluation_zh") or (
-                "请求已发送 OpenAI 兼容的 response_format=json_schema strict=true,"
-                "但 Gemini relay返回内容无法按 schema 解析。"
+            "title": lt(locale, "Structured Output не сработал", "Structured output did not take effect", "结构化输出没有真正生效"),
+            "body": (sd.get("evaluation_zh") if locale == "zh" else None) or lt(
+                locale,
+                "Запрос отправлялся с OpenAI-совместимым response_format=json_schema (strict=true), но ответ Gemini relay не прошёл валидацию по схеме.",
+                "The request sent OpenAI-compatible response_format=json_schema (strict=true), but the Gemini relay output did not parse according to the schema.",
+                "请求已发送 OpenAI 兼容的 response_format=json_schema strict=true,但 Gemini relay返回内容无法按 schema 解析。",
             ),
         })
 
@@ -1069,9 +1078,12 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
     )
     if token_usage and token_usage.get("status") != "pass":
         notes.append({
-            "title": "Token 用量存在风险",
-            "body": td.get("evaluation_zh") or (
-                "usage 字段不完整或统计不自洽,建议不要直接依赖它做计费核算。"
+            "title": lt(locale, "Риск расхождения в полях usage", "Token usage discrepancy risk", "Token 用量存在风险"),
+            "body": (td.get("evaluation_zh") if locale == "zh" else None) or lt(
+                locale,
+                "Поля usage неполные или не согласуются между короткими и длинными запросами.",
+                "Usage fields are incomplete or inconsistent between short and long prompts.",
+                "usage 字段不完整或统计不自洽,建议不要直接依赖它做计费核算。",
             ),
         })
 
@@ -1083,18 +1095,23 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
     )
     if integrity and integrity.get("status") != "pass":
         notes.append({
-            "title": "流式响应存在偏差",
-            "body": idetails.get("evaluation_zh") or (
-                "stream 与 non-stream 的文本、结束原因或 usage 字段没有对齐。"
+            "title": lt(locale, "Расхождение stream и non-stream ответов", "Stream vs non-stream mismatch", "流式响应存在偏差"),
+            "body": (idetails.get("evaluation_zh") if locale == "zh" else None) or lt(
+                locale,
+                "Текст, причина остановки (finish_reason) или usage между stream и non-stream запросами не совпали.",
+                "Response text, finish_reason, or usage differed between streaming and non-streaming calls.",
+                "stream 与 non-stream 的文本、结束原因或 usage 字段没有对齐。",
             ),
         })
 
     if not notes:
         notes.append({
-            "title": "Gemini OpenAI 兼容协议表现良好",
-            "body": (
-                "基础请求、模型字段、tool 调用、结构化输出、流式响应和 Token 用量字段基本符合 "
-                "OpenAI Chat Completions 规范。"
+            "title": lt(locale, "Gemini OpenAI-совместимый протокол работает корректно", "Gemini OpenAI-compatible protocol looks healthy", "Gemini OpenAI 兼容协议表现良好"),
+            "body": lt(
+                locale,
+                "Базовый запрос, поля модели, function calling, structured output, стриминг и usage соответствуют спецификации OpenAI Chat Completions.",
+                "Basic calls, model metadata, function calling, structured output, streaming, and usage counters conform to the OpenAI Chat Completions spec.",
+                "基础请求、模型字段、tool 调用、结构化输出、流式响应和 Token 用量字段基本符合 OpenAI Chat Completions 规范。",
             ),
         })
     return notes
