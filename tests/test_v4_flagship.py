@@ -353,6 +353,8 @@ def test_pelican_tabs_on_all_model_pages_and_standalone_api(monkeypatch, tmp_pat
         assert r_page.status_code == 200
         assert "data:image/svg+xml;base64," in r_page.text
         assert r_page.text.count("class=\"check-row ") == 1
+        assert "Полное совпадение" not in r_page.text
+        assert "Валидный SVG" in r_page.text
 
         svg_dl = client.get(f"/r/{job_id}/pelican.svg")
         assert svg_dl.status_code == 200

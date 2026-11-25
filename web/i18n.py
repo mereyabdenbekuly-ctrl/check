@@ -510,8 +510,33 @@ def tier_banner_for_locale(locale: str, protocol: str) -> tuple[str, str]:
     )
 
 
-def result_caption(locale: str, score: float, verdict: str, protocol: str = "anthropic") -> str:
+def result_caption(
+    locale: str,
+    score: float,
+    verdict: str,
+    protocol: str = "anthropic",
+    mode: str = "",
+) -> str:
     locale = normalize_locale(locale)
+    if (mode or "").strip().lower() == "pelican":
+        if locale == "zh":
+            if verdict == "passed":
+                return "SVG 有效 · 视觉测试"
+            if verdict == "marginal":
+                return "简易 SVG · 视觉测试"
+            return "SVG 生成失败"
+        if locale == "en":
+            if verdict == "passed":
+                return "Valid SVG · visual test"
+            if verdict == "marginal":
+                return "Simple SVG · visual test"
+            return "Invalid SVG"
+        if verdict == "passed":
+            return "Валидный SVG · визуальный тест"
+        if verdict == "marginal":
+            return "Упрощённый SVG · визуальный тест"
+        return "SVG не построен"
+
     if locale == "zh":
         if verdict == "passed" and score >= 95 and protocol == "anthropic":
             return "完全一致"

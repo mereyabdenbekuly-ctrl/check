@@ -332,7 +332,7 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
     score = float(report.get("total_score", 0.0))
     verdict = str(report.get("verdict") or "failed")
     ring = _verdict_color(score, verdict)
-    caption = result_caption(loc, score, verdict, protocol)
+    caption = result_caption(loc, score, verdict, protocol, mode=str(report.get("mode") or ""))
 
     circle_cx, circle_cy = 290, 405
     circle_r = 170

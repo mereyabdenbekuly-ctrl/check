@@ -143,12 +143,24 @@
     />
   </div>
   <div class="pelican-stats">
-    <span class="hub-pill">{{ lt(locale, 'Оценка', 'Score', '评分') }}: <strong>{{ '%.0f' | format(pelican.score) }}/100</strong></span>
+    {% set ptier = pelican.complexity_tier %}
+    {% if ptier == 'rich' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Детализированный SVG', 'Rich SVG', '高精细 SVG') }}</strong></span>
+    {% elif ptier == 'detailed' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Средняя детализация', 'Detailed SVG', '中等精细 SVG') }}</strong></span>
+    {% elif ptier == 'basic' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Базовый SVG', 'Basic SVG', '基础 SVG') }}</strong></span>
+    {% elif ptier == 'minimal' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Примитивный SVG', 'Minimal SVG', '简易 SVG') }}</strong></span>{% endif %}
+    <span class="hub-pill">{{ lt(locale, 'Структура SVG', 'SVG structure', 'SVG 结构') }}: <strong>{{ '%.0f' | format(pelican.score) }}/100</strong></span>
     <span class="hub-pill">{{ lt(locale, 'Примитивов', 'Shapes', '图元数') }}: <strong>{{ pelican.primitive_count }}</strong></span>
     <span class="hub-pill">{{ lt(locale, 'Цветов', 'Colors', '颜色数') }}: <strong>{{ pelican.unique_colors }}</strong></span>
     <span class="hub-pill">{{ lt(locale, 'Размер SVG', 'SVG size', 'SVG 大小') }}: <strong>{{ '{:,}'.format(pelican.svg_bytes) }} B</strong></span>
+    {% if pelican.reasoning_effort and pelican.reasoning_effort != 'default' %}<span class="hub-pill">Reasoning: <code>{{ pelican.reasoning_effort }}</code></span>{% endif %}
     {% if pelican.view_box %}<span class="hub-pill">viewBox: <code>{{ pelican.view_box }}</code></span>{% endif %}
   </div>
+  <p class="muted small" style="margin: 10px 0 0;">
+    {{ lt(locale,
+      'Автоматически проверяется только валидность и сложность SVG-структуры (фигуры, цвета, размер). Художественное качество и анатомию пеликана оценивайте визуально или через «Сравнить» — этот тест не заменяет полный аудит подлинности.',
+      'Automated scoring checks SVG validity and structural complexity (shapes, colors, size) only. Judge artistic & anatomical quality visually or via Compare — this test does not replace a full authenticity audit.',
+      '自动评分仅检测 SVG 有效性与结构复杂度（图元、配色、体积）；画面与解剖细节请肉眼判断或通过「对比报告」比较，本测试不替代完整真伪审计。') }}
+  </p>
   {% else %}
   <div class="pelican-empty">
     <strong>{{ lt(locale, 'Модель не вернула валидный SVG', 'Model did not produce a valid SVG', '模型未返回有效 SVG') }}</strong>
@@ -162,7 +174,7 @@
   <div class="result-left">
     <div class="score-ring score-{{ verdict_class }}">
       <div class="score-inner">
-        <div class="score-num">{{ '%.0f' | format(score) }}%</div>
+        <div class="score-num">{% if report.mode == 'pelican' %}{{ '%.0f' | format(score) }}/100{% else %}{{ '%.0f' | format(score) }}%{% endif %}</div>
         <div class="score-caption">{{ caption }}</div>
       </div>
     </div>
@@ -229,12 +241,24 @@
     />
   </div>
   <div class="pelican-stats">
-    <span class="hub-pill">{{ lt(locale, 'Оценка', 'Score', '评分') }}: <strong>{{ '%.0f' | format(pelican.score) }}/100</strong></span>
+    {% set ptier = pelican.complexity_tier %}
+    {% if ptier == 'rich' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Детализированный SVG', 'Rich SVG', '高精细 SVG') }}</strong></span>
+    {% elif ptier == 'detailed' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Средняя детализация', 'Detailed SVG', '中等精细 SVG') }}</strong></span>
+    {% elif ptier == 'basic' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Базовый SVG', 'Basic SVG', '基础 SVG') }}</strong></span>
+    {% elif ptier == 'minimal' %}<span class="hub-pill">{{ lt(locale, 'Детализация', 'Detail level', '精细度') }}: <strong>{{ lt(locale, 'Примитивный SVG', 'Minimal SVG', '简易 SVG') }}</strong></span>{% endif %}
+    <span class="hub-pill">{{ lt(locale, 'Структура SVG', 'SVG structure', 'SVG 结构') }}: <strong>{{ '%.0f' | format(pelican.score) }}/100</strong></span>
     <span class="hub-pill">{{ lt(locale, 'Примитивов', 'Shapes', '图元数') }}: <strong>{{ pelican.primitive_count }}</strong></span>
     <span class="hub-pill">{{ lt(locale, 'Цветов', 'Colors', '颜色数') }}: <strong>{{ pelican.unique_colors }}</strong></span>
     <span class="hub-pill">{{ lt(locale, 'Размер SVG', 'SVG size', 'SVG 大小') }}: <strong>{{ '{:,}'.format(pelican.svg_bytes) }} B</strong></span>
+    {% if pelican.reasoning_effort and pelican.reasoning_effort != 'default' %}<span class="hub-pill">Reasoning: <code>{{ pelican.reasoning_effort }}</code></span>{% endif %}
     {% if pelican.view_box %}<span class="hub-pill">viewBox: <code>{{ pelican.view_box }}</code></span>{% endif %}
   </div>
+  <p class="muted small" style="margin: 10px 0 0;">
+    {{ lt(locale,
+      'Автоматически проверяется только валидность и сложность SVG-структуры (фигуры, цвета, размер). Художественное качество и анатомию пеликана оценивайте визуально или через «Сравнить» — этот тест не заменяет полный аудит подлинности.',
+      'Automated scoring checks SVG validity and structural complexity (shapes, colors, size) only. Judge artistic & anatomical quality visually or via Compare — this test does not replace a full authenticity audit.',
+      '自动评分仅检测 SVG 有效性与结构复杂度（图元、配色、体积）；画面与解剖细节请肉眼判断或通过「对比报告」比较，本测试不替代完整真伪审计。') }}
+  </p>
   {% else %}
   <div class="pelican-empty">
     <strong>{{ lt(locale, 'Модель не вернула валидный SVG', 'Model did not produce a valid SVG', '模型未返回有效 SVG') }}</strong>

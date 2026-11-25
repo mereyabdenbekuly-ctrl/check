@@ -280,7 +280,7 @@ def _compare_summary(job_id: str, report: dict, locale: str) -> dict:
         "score": score,
         "verdict": verdict,
         "verdict_class": _verdict_css_class(score, verdict),
-        "caption": result_caption(locale, score, verdict, protocol),
+        "caption": result_caption(locale, score, verdict, protocol, mode=str(report.get("mode") or "")),
         "ttft_ms": perf.get("ttft_ms"),
         "total_latency_ms": perf.get("total_latency_ms") or 0,
         "tokens_per_second": tps,
@@ -925,7 +925,7 @@ async def result_jpg(request: Request, job_id: str) -> Response:
 
     locale = detect_locale(request)
     base_cache = jobs.image_path(job_id, j.protocol)
-    cache_path = base_cache.with_name(f"{job_id}.{locale}.v5.jpg")
+    cache_path = base_cache.with_name(f"{job_id}.{locale}.v6.jpg")
     if not cache_path.exists():
         jpg_bytes = render_report_jpg(j.report, locale=locale)
         cache_path.write_bytes(jpg_bytes)
@@ -937,6 +937,18 @@ async def result_jpg(request: Request, job_id: str) -> Response:
             "Cache-Control": "public, max-age=86400",
         },
     )
+
+
+def _pelican_complexity_tier(valid_svg: bool, prim: int, colors: int, svg_bytes: int) -> str:
+    if not valid_svg:
+        return "invalid"
+    if prim >= 60 and svg_bytes >= 6000 and colors >= 6:
+        return "rich"
+    if prim >= 30 and svg_bytes >= 2500 and colors >= 4:
+        return "detailed"
+    if prim >= 12 and svg_bytes >= 800:
+        return "basic"
+    return "minimal"
 
 
 def _pelican_preview(report: dict) -> dict | None:
@@ -955,15 +967,21 @@ def _pelican_preview(report: dict) -> dict | None:
             if svg_str
             else ""
         )
+        valid_svg = bool(d.get("valid_svg")) and bool(svg_str)
+        prim = int(d.get("primitive_count") or 0)
+        colors = int(d.get("unique_colors") or 0)
+        svg_bytes = int(d.get("svg_bytes") or 0)
         return {
             "status": status,
             "score": float(r.get("score") or 0.0),
-            "valid_svg": bool(d.get("valid_svg")) and bool(svg_str),
+            "valid_svg": valid_svg,
+            "complexity_tier": _pelican_complexity_tier(valid_svg, prim, colors, svg_bytes),
+            "reasoning_effort": str(d.get("reasoning_effort") or ""),
             "svg_b64": svg_b64,
             "svg_raw": svg_str,
-            "primitive_count": int(d.get("primitive_count") or 0),
-            "unique_colors": int(d.get("unique_colors") or 0),
-            "svg_bytes": int(d.get("svg_bytes") or 0),
+            "primitive_count": prim,
+            "unique_colors": colors,
+            "svg_bytes": svg_bytes,
             "view_box": str(d.get("view_box") or ""),
             "has_wheels": bool(d.get("has_wheels")),
             "reason": str(d.get("reason") or r.get("error") or ""),
@@ -1102,6 +1120,7 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
             float(j.report.get("total_score") or 0),
             str(j.report.get("verdict") or "failed"),
             protocol,
+            mode=str(j.report.get("mode") or ""),
         ),
         **_seo_meta_for_report(j.report, locale),
     )

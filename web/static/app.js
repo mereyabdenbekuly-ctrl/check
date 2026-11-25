@@ -510,11 +510,24 @@
     const cmpEl = document.getElementById('pelican-inline-compare');
     const repEl = document.getElementById('pelican-inline-report');
 
+    const tierLabels = {
+      rich: i18n.pelican_tier_rich || 'Rich SVG',
+      detailed: i18n.pelican_tier_detailed || 'Detailed SVG',
+      basic: i18n.pelican_tier_basic || 'Basic SVG',
+      minimal: i18n.pelican_tier_minimal || 'Minimal SVG',
+    };
+    const tierLabel = tierLabels[p.complexity_tier] || '';
+
     if (titleEl) {
-      titleEl.textContent = (data.model || 'Model') + ' · ' + Math.round(Number(p.score || data.total_score || 0)) + '/100';
+      if (p.valid_svg && tierLabel) {
+        titleEl.textContent = (data.model || 'Model') + ' · ' + tierLabel + ' (' + Number(p.primitive_count || 0) + ')';
+      } else {
+        titleEl.textContent = (data.model || 'Model') + ' · ' + Math.round(Number(p.score || data.total_score || 0)) + '/100';
+      }
     }
     if (metaEl) {
-      metaEl.textContent = (data.base_url || '') + ' · ' + (data.protocol || '');
+      const effortNote = p.reasoning_effort && p.reasoning_effort !== 'default' ? (' · reasoning: ' + p.reasoning_effort) : '';
+      metaEl.textContent = (data.base_url || '') + ' · ' + (data.protocol || '') + effortNote;
     }
     if (repEl && data.result_url) repEl.href = data.result_url;
     if (cmpEl && data.compare_url) cmpEl.href = data.compare_url;
@@ -542,12 +555,19 @@
     }
 
     if (statsEl) {
-      const pills = [
-        '<span>' + escapeHtml(i18n.pelican_score || 'Score') + ': <strong>' + Math.round(Number(p.score || 0)) + '/100</strong></span>',
+      const pills = [];
+      if (tierLabel) {
+        pills.push('<span>' + escapeHtml(i18n.pelican_detail || 'Detail level') + ': <strong>' + escapeHtml(tierLabel) + '</strong></span>');
+      }
+      pills.push(
+        '<span>' + escapeHtml(i18n.pelican_score || 'SVG structure') + ': <strong>' + Math.round(Number(p.score || 0)) + '/100</strong></span>',
         '<span>' + escapeHtml(i18n.pelican_shapes || 'Shapes') + ': <strong>' + Number(p.primitive_count || 0) + '</strong></span>',
         '<span>' + escapeHtml(i18n.pelican_colors || 'Colors') + ': <strong>' + Number(p.unique_colors || 0) + '</strong></span>',
         '<span>' + escapeHtml(i18n.pelican_size || 'SVG size') + ': <strong>' + Number(p.svg_bytes || 0).toLocaleString() + ' B</strong></span>',
-      ];
+      );
+      if (p.reasoning_effort && p.reasoning_effort !== 'default') {
+        pills.push('<span>Reasoning: <code>' + escapeHtml(p.reasoning_effort) + '</code></span>');
+      }
       if (p.view_box) {
         pills.push('<span>viewBox: <code>' + escapeHtml(p.view_box) + '</code></span>');
       }
