@@ -7,7 +7,7 @@ from ....core.pelican import PELICAN_PROMPT, extract_and_evaluate_pelican_svg
 from .base import ActiveDetector
 
 
-MAX_TOKENS = 3200
+MAX_TOKENS = 6400
 
 
 class PelicanSVGDetector(ActiveDetector):

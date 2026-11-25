@@ -63,7 +63,7 @@ def evaluate_tokenizer_probe(
         ws_min, ws_max = 20, 180
     else:
         edge_min, edge_max = 65, 230
-        ws_min, ws_max = 20, 150
+        ws_min, ws_max = 20, 175
 
     edge_ok = edge_delta is not None and edge_min <= edge_delta <= edge_max
     ws_ok = ws_delta is not None and ws_min <= ws_delta <= ws_max

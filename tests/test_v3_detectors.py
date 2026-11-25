@@ -67,6 +67,32 @@ def test_pelican_svg_sanitizes_xss_and_scores_frontier_svg():
     assert svg.startswith("<svg") and svg.endswith("</svg>")
 
 
+def test_pelican_svg_preserves_local_use_wheels_and_blocks_external_use():
+    svg_with_use = """<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 400 300">
+      <defs>
+        <g id="wheel">
+          <circle r="40" fill="none" stroke="#233047" stroke-width="8" />
+          <path d="M-35 0h70M0-35v70" stroke="#627e8a" stroke-width="2" />
+        </g>
+      </defs>
+      <rect width="400" height="300" fill="#86dce9" />
+      <use href="#wheel" x="106" y="221" />
+      <use xlink:href="#wheel" x="287" y="221" />
+      <use href="https://evil.example/payload.svg#xss" x="0" y="0" />
+      <use href="javascript:alert(1)" x="0" y="0" />
+      <path d="M106 221 L156 169 L251 165 L287 221" fill="none" stroke="#14aa9f" stroke-width="6" />
+      <ellipse cx="185" cy="122" rx="34" ry="22" fill="#fff9e7" stroke="#233047" stroke-width="3" />
+      <path d="M246 72 L300 78 L246 84 Z" fill="#ffbe49" />
+    </svg>"""
+    res = extract_and_evaluate_pelican_svg(svg_with_use)
+    assert res["valid_svg"] is True
+    out = res["svg_sanitized"]
+    assert '<use href="#wheel" x="106" y="221"' in out
+    assert '<use href="#wheel" x="287" y="221"' in out
+    assert "evil.example" not in out
+    assert "javascript:" not in out
+
+
 def test_pelican_svg_rejects_dtd_and_fails_crude_shapes():
     evil = '<!DOCTYPE svg [<!ENTITY xxe "boom">]><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="10"/></svg>'
     assert extract_and_evaluate_pelican_svg(evil)["valid_svg"] is False

@@ -28,6 +28,8 @@ _SVG_NS = "http://www.w3.org/2000/svg"
 _ALLOWED_TAGS = frozenset({
     "svg",
     "g",
+    "use",
+    "symbol",
     "path",
     "circle",
     "ellipse",
@@ -40,6 +42,8 @@ _ALLOWED_TAGS = frozenset({
     "radialgradient",
     "stop",
     "clippath",
+    "mask",
+    "pattern",
     "title",
     "desc",
     "text",
@@ -54,6 +58,7 @@ _DRAWING_PRIMITIVES = frozenset({
     "line",
     "polyline",
     "polygon",
+    "use",
 })
 
 _ALLOWED_ATTRS = frozenset({
@@ -82,6 +87,7 @@ _ALLOWED_ATTRS = frozenset({
     "stroke-width",
     "stroke-linecap",
     "stroke-linejoin",
+    "stroke-miterlimit",
     "stroke-dasharray",
     "stroke-opacity",
     "opacity",
@@ -91,6 +97,12 @@ _ALLOWED_ATTRS = frozenset({
     "stop-opacity",
     "gradientunits",
     "gradienttransform",
+    "spreadmethod",
+    "clip-path",
+    "clippathunits",
+    "mask",
+    "maskunits",
+    "patternunits",
     "fx",
     "fy",
     "font-size",
@@ -107,6 +119,10 @@ _CANONICAL_ATTR_CASE = {
     "viewbox": "viewBox",
     "gradientunits": "gradientUnits",
     "gradienttransform": "gradientTransform",
+    "spreadmethod": "spreadMethod",
+    "clippathunits": "clipPathUnits",
+    "maskunits": "maskUnits",
+    "patternunits": "patternUnits",
     "preserveaspectratio": "preserveAspectRatio",
 }
 
@@ -119,6 +135,9 @@ _CANONICAL_TAG_CASE = {
 _DANGEROUS_VALUE_RE = re.compile(
     r"(?i)(javascript:|vbscript:|data:|expression\s*\(|url\s*\(\s*['\"]?\s*(?!#))"
 )
+_LOCAL_FRAGMENT_REF_RE = re.compile(r"^#[A-Za-z_][A-Za-z0-9_.:-]{0,127}$")
+_XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
+_MAX_USE_ELEMENTS = 40
 _SVG_EXTRACT_RE = re.compile(r"<svg\b[^>]*>.*?</svg>", re.IGNORECASE | re.DOTALL)
 
 
@@ -133,13 +152,33 @@ def _sanitize_element(el: ET.Element, stats: dict[str, Any]) -> ET.Element | Non
     if raw_tag not in _ALLOWED_TAGS:
         return None
 
+    if raw_tag == "use":
+        if stats.get("use_count", 0) >= _MAX_USE_ELEMENTS:
+            return None
+        raw_href = (el.attrib.get("href") or el.attrib.get(_XLINK_HREF) or "").strip()
+        if not _LOCAL_FRAGMENT_REF_RE.match(raw_href):
+            return None
+        stats["use_count"] = stats.get("use_count", 0) + 1
+
     clean_tag = _CANONICAL_TAG_CASE.get(raw_tag, raw_tag)
     out = ET.Element(clean_tag)
 
     for k, v in el.attrib.items():
+        if k == _XLINK_HREF:
+            if raw_tag == "use":
+                val = str(v).strip()
+                if _LOCAL_FRAGMENT_REF_RE.match(val):
+                    out.set("href", val)
+            continue
         if "}" in k:
             continue
         lk = k.lower()
+        if lk == "href":
+            if raw_tag == "use":
+                val = str(v).strip()
+                if _LOCAL_FRAGMENT_REF_RE.match(val):
+                    out.set("href", val)
+            continue
         if lk.startswith("on") or lk not in _ALLOWED_ATTRS:
             continue
         val = str(v).strip()
