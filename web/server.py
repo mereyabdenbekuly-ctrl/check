@@ -18,7 +18,7 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import jobs, leaderboard
+from . import jobs
 from .i18n import (
     detect_locale,
     detector_display,
@@ -30,7 +30,6 @@ from .i18n import (
     t as tr,
     tier_banner_for_locale,
     ui as ui_copy,
-    verdict_labels_for_locale,
     with_lang,
 )
 from .faq_data import categories as faq_categories, faqpage_jsonld, total_question_count
@@ -167,89 +166,6 @@ async def openai_index(request: Request) -> HTMLResponse:
 @app.get("/gemini", response_class=HTMLResponse)
 async def gemini_index(request: Request) -> HTMLResponse:
     return _render(request, "gemini.html", models=_gemini_model_choices())
-
-
-_LEADERBOARD_TOP_N = 10
-_LEADERBOARD_PER_PAGE = 25
-
-
-@app.get("/leaderboard", response_class=HTMLResponse)
-async def leaderboard_page(
-    request: Request,
-    page: int = 1,
-) -> HTMLResponse:
-    """relay红黑榜 — 按域名聚合所有公开检测报告。
-
-    SEO/GEO 杀手锏:任意「XX relay怎么样」搜索直接命中此页。
-
-    Layout:
-      - Top 10 (主榜):always visible, no pagination, sorted by Bayesian-
-        weighted ranking score so consistently-tested relays beat fluky-
-        single-pass ones.
-      - Rest (全部列表):paginated 25/page via ?page=N. Each page indexable
-        for SEO long-tail (`?page=2` etc.).
-    """
-    all_relays, summary = leaderboard.aggregate()
-    top = all_relays[:_LEADERBOARD_TOP_N]
-    rest = all_relays[_LEADERBOARD_TOP_N:]
-
-    total_rest = len(rest)
-    total_pages = max(1, (total_rest + _LEADERBOARD_PER_PAGE - 1) // _LEADERBOARD_PER_PAGE)
-    page = max(1, min(page, total_pages))
-    rest_start = (page - 1) * _LEADERBOARD_PER_PAGE
-    rest_page_items = rest[rest_start:rest_start + _LEADERBOARD_PER_PAGE]
-
-    locale = detect_locale(request)
-    return _render(
-        request,
-        "leaderboard.html",
-        top_relays=top,
-        rest_relays=rest_page_items,
-        rest_start_rank=_LEADERBOARD_TOP_N + rest_start + 1,
-        summary=summary,
-        page=page,
-        total_pages=total_pages,
-        has_rest=total_rest > 0,
-        protocol_labels=leaderboard.PROTOCOL_LABELS,
-        verdict_labels=verdict_labels_for_locale(locale),
-    )
-
-
-@app.get("/leaderboard/{domain}", response_class=HTMLResponse)
-async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse:
-    """每域名独立详情页 — SEO 长尾关键的杠杆。
-
-    用户搜「{domain} relay怎么样」/「{domain} 真假」/「{domain} 评测」时,
-    Google 直接命中此页。包含该域名的所有历史检测、协议覆盖、最常失败的
-    detector,以及指向每份具体 /r/{job_id} 报告的链接。
-    """
-    if not leaderboard.is_valid_domain(domain):
-        raise HTTPException(status_code=404, detail="invalid domain")
-    result = leaderboard.aggregate_one(domain)
-    if result is None:
-        raise HTTPException(status_code=404, detail="no reports for this domain")
-    relay, history = result
-
-    # Top 5 most-failed detectors across all protocols — the headline issues.
-    failed_summary: list[tuple[str, int]] = []
-    seen_names: set[str] = set()
-    for ps in relay.by_protocol.values():
-        for name, cnt in ps.failed_detectors.most_common(5):
-            if name not in seen_names:
-                failed_summary.append((name, cnt))
-                seen_names.add(name)
-    failed_summary.sort(key=lambda x: x[1], reverse=True)
-
-    locale = detect_locale(request)
-    return _render(
-        request,
-        "leaderboard_detail.html",
-        relay=relay,
-        history=history,
-        failed_summary=failed_summary[:8],
-        protocol_labels=leaderboard.PROTOCOL_LABELS,
-        verdict_labels=verdict_labels_for_locale(locale),
-    )
 
 
 @app.get("/faq", response_class=HTMLResponse)
@@ -580,7 +496,7 @@ async def result_jpg(request: Request, job_id: str) -> Response:
 
     locale = detect_locale(request)
     base_cache = jobs.image_path(job_id, j.protocol)
-    cache_path = base_cache.with_name(f"{job_id}.{locale}.v2.jpg")
+    cache_path = base_cache.with_name(f"{job_id}.{locale}.v3.jpg")
     if not cache_path.exists():
         jpg_bytes = render_report_jpg(j.report, locale=locale)
         cache_path.write_bytes(jpg_bytes)
@@ -664,10 +580,6 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     if j.status != "done" or j.report is None:
         return _render(request, "running.html", job_id=job_id, job=j)
     locale = detect_locale(request)
-    base_url = str(j.report.get("base_url") or "")
-    domain = leaderboard._extract_domain(base_url)  # noqa: SLF001
-    if domain and not leaderboard.is_valid_domain(domain):
-        domain = ""
     protocol = str(j.report.get("protocol") or "anthropic")
     tier_title, tier_message = tier_banner_for_locale(locale, protocol)
     return _render(
@@ -679,7 +591,6 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
         report_notes=_report_notes(j.report, locale),
         tier_title=tier_title,
         tier_message=tier_message,
-        breadcrumb_domain=domain,
         caption=result_caption(
             locale,
             float(j.report.get("total_score") or 0),
@@ -717,15 +628,12 @@ async def llms_txt() -> Response:
 
 
 # (loc, changefreq, priority, template_filename) — lastmod resolved at
-# request time from the template file's mtime. /leaderboard is special:
-# its content changes whenever a new report lands, so we override its
-# lastmod with the most recent report timestamp.
+# request time from the template file's mtime.
 _STATIC_SITEMAP_URLS = [
     ("https://check.clodex.xyz/",            "weekly",  "1.0",  "hub.html"),
     ("https://check.clodex.xyz/claude",      "weekly",  "0.9",  "index.html"),
     ("https://check.clodex.xyz/openai",      "weekly",  "0.9",  "openai.html"),
     ("https://check.clodex.xyz/gemini",      "weekly",  "0.9",  "gemini.html"),
-    ("https://check.clodex.xyz/leaderboard", "daily",   "0.85", "leaderboard.html"),
     ("https://check.clodex.xyz/faq",         "monthly", "0.8",  "faq.html"),
 ]
 
@@ -748,31 +656,12 @@ def _template_lastmod(filename: str) -> str:
 
 @app.get("/sitemap.xml")
 async def sitemap_xml() -> Response:
-    """Dynamic sitemap — static product pages + reports + per-domain pages.
-
-    `lastmod` is included for every URL so search engines know when to
-    revisit. Static pages use the underlying template's mtime (≈ deploy
-    time); /leaderboard and /leaderboard/{domain} use the most recent
-    report timestamp since their content is data-driven.
-    """
-    # Aggregate once: powers both /leaderboard's lastmod (max across all
-    # relays) and each /leaderboard/{domain} page's per-relay lastmod.
-    relays, _ = leaderboard.aggregate()
-    relay_last_checked = [r.last_checked for r in relays if r.last_checked]
-    leaderboard_lastmod = (
-        max(relay_last_checked).strftime("%Y-%m-%d")
-        if relay_last_checked else ""
-    )
-
+    """Dynamic sitemap — static product pages + public reports."""
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
 
     for loc, freq, prio, tpl in _STATIC_SITEMAP_URLS:
-        if loc.endswith("/leaderboard"):
-            # Data-driven page: lastmod follows the data, not the template.
-            lastmod = leaderboard_lastmod or _template_lastmod(tpl)
-        else:
-            lastmod = _template_lastmod(tpl)
+        lastmod = _template_lastmod(tpl)
         line = f"  <url><loc>{loc}</loc>"
         if lastmod:
             line += f"<lastmod>{lastmod}</lastmod>"
@@ -800,18 +689,6 @@ async def sitemap_xml() -> Response:
                 f"<changefreq>monthly</changefreq>"
                 f"<priority>0.6</priority></url>"
             )
-
-    # Per-domain detail pages — primary long-tail SEO surface. lastmod is
-    # the relay's most recent report so Google revisits whenever new data
-    # lands for that domain.
-    for r in relays:
-        if not leaderboard.is_valid_domain(r.domain):
-            continue
-        line = f"  <url><loc>https://check.clodex.xyz/leaderboard/{r.domain}</loc>"
-        if r.last_checked:
-            line += f"<lastmod>{r.last_checked.strftime('%Y-%m-%d')}</lastmod>"
-        line += "<changefreq>weekly</changefreq><priority>0.75</priority></url>"
-        lines.append(line)
 
     lines.append("</urlset>\n")
     return Response(

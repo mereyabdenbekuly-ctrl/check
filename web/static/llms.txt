@@ -9,7 +9,6 @@
 - [Claude API Check](https://check.clodex.xyz/claude): 12 detectors for Anthropic Messages API (`/v1/messages`), anchored by Anthropic server-side `thinking signature` cryptographic verification (Opus 5.5/5/4.8/4.7, Sonnet 5.5/5/4.6, Haiku 5.5/4.5).
 - [OpenAI / GPT API Check](https://check.clodex.xyz/openai): 8 detectors for OpenAI Chat Completions (`/v1/chat/completions`), including strict JSON Schema, function calling, streaming parity, token billing, and cross-vendor usage fingerprints (GPT-6.2/6.1/6/5.6/5.5/5.4).
 - [Gemini API Check](https://check.clodex.xyz/gemini): 7 detectors for Gemini OpenAI-compatible endpoints (Gemini 4 / 3.8 / 3 / 2.5).
-- [Leaderboard](https://check.clodex.xyz/leaderboard): Bayesian-ranked public relay benchmarks aggregated from `/r/{id}` reports.
 - [FAQ](https://check.clodex.xyz/faq): Practical and technical explanations of detectors, scoring, and API-key privacy.
 
 ## Privacy & Security

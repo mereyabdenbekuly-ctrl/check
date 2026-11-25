@@ -7,7 +7,7 @@
   <meta name="description" content="{% block description %}{{ ui.footer_desc }}{% endblock %}" />
   <meta name="keywords" content="проверка AI API, проверка Claude API, проверка GPT API, проверка Gemini API, API relay, API прокси, подлинность модели, Claude thinking signature, CLODEX Check" />
   <meta name="robots" content="index,follow" />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#080b09" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="CLODEX Check" />
   <meta property="og:title" content="{% block og_title %}CLODEX Check · {{ ui.site_tagline }}{% endblock %}" />
@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=20261125-clodex-v2" />
+  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v3" />
   {% block head_extra %}{% endblock %}
   <script>
     window.__veridropUi = {{ ui | tojson }};
@@ -69,11 +69,12 @@
   </script>
 </head>
 <body>
+  <div class="grid-bg" aria-hidden="true"></div>
   {% set cur_path = request.url.path %}
   <header class="site-header">
     <div class="site-header-inner">
       <a class="brand" href="{{ with_lang('/', locale) }}" aria-label="CLODEX Check">
-        <img class="brand-logo" src="/static/clodex-logo-header.png" alt="CLODEX" width="130" height="29" />
+        <img class="brand-logo" src="/static/clodex-logo-header.png" alt="CLODEX" width="142" height="32" />
         <span class="brand-pill">CHECK</span>
       </a>
       <button
@@ -92,7 +93,6 @@
           <a href="{{ with_lang('/claude', locale) }}" class="{% if cur_path.startswith('/claude') %}is-active{% endif %}">{{ ui.nav_claude }}</a>
           <a href="{{ with_lang('/openai', locale) }}" class="{% if cur_path.startswith('/openai') %}is-active{% endif %}">{{ ui.nav_openai }}</a>
           <a href="{{ with_lang('/gemini', locale) }}" class="{% if cur_path.startswith('/gemini') %}is-active{% endif %}">{{ ui.nav_gemini }}</a>
-          <a href="{{ with_lang('/leaderboard', locale) }}" class="{% if cur_path.startswith('/leaderboard') %}is-active{% endif %}">{{ ui.nav_leaderboard }}</a>
           <a href="{{ with_lang('/faq', locale) }}" class="{% if cur_path.startswith('/faq') %}is-active{% endif %}">{{ ui.nav_faq }}</a>
         </div>
         <div class="nav-actions">
@@ -148,7 +148,6 @@
           <li><a href="{{ with_lang('/claude', locale) }}">{{ ui.nav_claude }}</a></li>
           <li><a href="{{ with_lang('/openai', locale) }}">{{ ui.nav_openai }}</a></li>
           <li><a href="{{ with_lang('/gemini', locale) }}">{{ ui.nav_gemini }}</a></li>
-          <li><a href="{{ with_lang('/leaderboard', locale) }}">{{ ui.nav_leaderboard }}</a></li>
           <li><a href="{{ with_lang('/faq', locale) }}">{{ ui.footer_faq }}</a></li>
         </ul>
       </div>

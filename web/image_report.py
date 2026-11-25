@@ -64,18 +64,19 @@ def _load_font(
     return ImageFont.load_default()
 
 
-# CLODEX light palette
-_ACCENT = (91, 92, 226)
-_ACCENT_SOFT = (239, 239, 255)
-_SUCCESS = (21, 128, 61)
-_SUCCESS_MID = (22, 163, 74)
-_WARN = (217, 119, 6)
-_DANGER = (220, 38, 38)
-_TEXT = (17, 19, 24)
-_MUTED = (96, 103, 115)
-_LINE = (227, 230, 235)
-_BG = (255, 255, 255)
-_TILE_BG = (247, 248, 250)
+# CLODEX dark obsidian + emerald palette
+_ACCENT = (57, 255, 136)
+_ACCENT_SOFT = (18, 41, 28)
+_SUCCESS = (57, 255, 136)
+_SUCCESS_MID = (34, 197, 94)
+_WARN = (245, 158, 11)
+_DANGER = (239, 68, 68)
+_TEXT = (242, 247, 243)
+_MUTED = (165, 177, 169)
+_LINE = (29, 41, 34)
+_BG = (8, 11, 9)
+_TILE_BG = (13, 18, 15)
+_CHECK_INK = (7, 21, 13)
 
 
 def _status_color(status: str, score: float) -> tuple[int, int, int]:
@@ -111,7 +112,7 @@ def _draw_check(
     p1 = (cx - r * 0.45, cy + r * 0.05)
     p2 = (cx - r * 0.10, cy + r * 0.40)
     p3 = (cx + r * 0.50, cy - r * 0.30)
-    d.line([p1, p2, p3], fill=(255, 255, 255), width=max(2, r // 6))
+    d.line([p1, p2, p3], fill=_CHECK_INK, width=max(2, r // 6))
 
 
 def _draw_cross(
@@ -445,14 +446,14 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
         d.rounded_rectangle(
             (rows_x, note_y, rows_x + rows_w, note_y + 48),
             radius=10,
-            fill=(255, 251, 235),
-            outline=(253, 230, 138),
+            fill=(42, 31, 13),
+            outline=(120, 82, 22),
             width=1,
         )
         d.text(
             (rows_x + 16, note_y + 14),
             note[:72],
-            fill=(146, 64, 14),
+            fill=(252, 211, 77),
             font=note_font,
         )
 

@@ -92,13 +92,19 @@ def test_render_report_jpg_produces_valid_jpeg(locale: str):
     assert len(data) > 10_000
 
 
-def test_web_routes_render_clodex_theme_without_upstream_tracker():
+def test_web_routes_render_clodex_dark_theme_without_leaderboard_or_tracker():
     client = TestClient(app)
-    for path in ("/", "/claude", "/openai", "/gemini", "/leaderboard", "/faq"):
+    for path in ("/", "/claude", "/openai", "/gemini", "/faq"):
         resp = client.get(path)
         assert resp.status_code == 200, f"{path} returned {resp.status_code}"
         assert "G-LWRPQF2182" not in resp.text, f"upstream GA tracker leaked on {path}"
         assert "clodex-logo-header.png" in resp.text
+        assert "/leaderboard" not in resp.text, f"leaderboard link leaked on {path}"
+        assert 'name="theme-color" content="#080b09"' in resp.text
+
+    # Leaderboard pages must be removed (404)
+    assert client.get("/leaderboard").status_code == 404
+    assert client.get("/leaderboard/clodex.xyz").status_code == 404
 
     claude_html = client.get("/claude").text
     assert 'data-preset-url="https://clodex.xyz"' in claude_html
@@ -121,4 +127,6 @@ def test_web_routes_render_clodex_theme_without_upstream_tracker():
 
     assert client.get("/healthz").json()["ok"] is True
     assert client.get("/robots.txt").status_code == 200
-    assert client.get("/sitemap.xml").status_code == 200
+    sitemap_resp = client.get("/sitemap.xml")
+    assert sitemap_resp.status_code == 200
+    assert "/leaderboard" not in sitemap_resp.text
