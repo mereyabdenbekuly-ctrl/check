@@ -14,8 +14,11 @@ from .knowledge import KnowledgeDetector
 from .long_context import LongContextDetector
 from .message_id import MessageIDDetector
 from .pdf import PDFDetector
+from .pelican_svg import PelicanSVGDetector
+from .prompt_cache import PromptCacheDetector
 from .protocol import ProtocolDetector
 from .structured_output import StructuredOutputDetector
+from .system_injection import SystemInjectionDetector
 from .thinking_signature import ThinkingSignatureDetector
 from .token_usage import TokenUsageDetector
 
@@ -34,6 +37,9 @@ def build_all() -> list[BaseDetector]:
         IntegrityDetector(),
         TokenUsageDetector(),
         MessageIDDetector(),
+        PromptCacheDetector(),
+        SystemInjectionDetector(),
+        PelicanSVGDetector(),
         LongContextDetector(),
     ]
 
@@ -53,6 +59,9 @@ __all__ = [
     "IntegrityDetector",
     "TokenUsageDetector",
     "MessageIDDetector",
+    "PromptCacheDetector",
+    "SystemInjectionDetector",
+    "PelicanSVGDetector",
     "LongContextDetector",
     "build_all",
 ]

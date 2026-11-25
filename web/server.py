@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -522,7 +523,7 @@ async def result_jpg(request: Request, job_id: str) -> Response:
 
     locale = detect_locale(request)
     base_cache = jobs.image_path(job_id, j.protocol)
-    cache_path = base_cache.with_name(f"{job_id}.{locale}.v3.jpg")
+    cache_path = base_cache.with_name(f"{job_id}.{locale}.v4.jpg")
     if not cache_path.exists():
         jpg_bytes = render_report_jpg(j.report, locale=locale)
         cache_path.write_bytes(jpg_bytes)
@@ -531,6 +532,58 @@ async def result_jpg(request: Request, job_id: str) -> Response:
         media_type="image/jpeg",
         headers={
             "Content-Disposition": f'inline; filename="clodex-check-{job_id}.jpg"',
+            "Cache-Control": "public, max-age=86400",
+        },
+    )
+
+
+def _pelican_preview(report: dict) -> dict | None:
+    """Extract sanitized SVG & metadata from a report's pelican_svg result."""
+    for r in report.get("results") or []:
+        if not isinstance(r, dict) or r.get("name") != "pelican_svg":
+            continue
+        status = str(r.get("status") or "skip")
+        if status == "skip":
+            return None
+        d = r.get("details") if isinstance(r.get("details"), dict) else {}
+        svg = d.get("svg_sanitized")
+        svg_str = svg if isinstance(svg, str) and svg.strip().startswith("<svg") else ""
+        svg_b64 = (
+            base64.b64encode(svg_str.encode("utf-8")).decode("ascii")
+            if svg_str
+            else ""
+        )
+        return {
+            "status": status,
+            "score": float(r.get("score") or 0.0),
+            "valid_svg": bool(d.get("valid_svg")) and bool(svg_str),
+            "svg_b64": svg_b64,
+            "svg_raw": svg_str,
+            "primitive_count": int(d.get("primitive_count") or 0),
+            "unique_colors": int(d.get("unique_colors") or 0),
+            "svg_bytes": int(d.get("svg_bytes") or 0),
+            "view_box": str(d.get("view_box") or ""),
+            "has_wheels": bool(d.get("has_wheels")),
+            "reason": str(d.get("reason") or r.get("error") or ""),
+        }
+    return None
+
+
+@app.get("/r/{job_id}/pelican.svg")
+async def result_pelican_svg(job_id: str) -> Response:
+    j = await jobs.get(job_id)
+    if j is None or j.status != "done" or j.report is None:
+        raise HTTPException(status_code=404, detail="result not ready")
+    pelican = _pelican_preview(j.report)
+    if not pelican or not pelican.get("svg_raw"):
+        raise HTTPException(status_code=404, detail="pelican svg unavailable")
+    return Response(
+        content=pelican["svg_raw"].encode("utf-8"),
+        media_type="image/svg+xml; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="clodex-pelican-{job_id}.svg"',
+            "Content-Security-Policy": "sandbox",
+            "X-Content-Type-Options": "nosniff",
             "Cache-Control": "public, max-age=86400",
         },
     )
@@ -617,6 +670,11 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
         )
     protocol = str(j.report.get("protocol") or "anthropic")
     tier_title, tier_message = tier_banner_for_locale(locale, protocol)
+    crit_map = detector_criteria(locale, protocol)
+    detector_defs = [
+        {"label": label, "criteria": crit_map.get(key, "")}
+        for key, label in detector_display(locale, protocol)
+    ]
     return _render(
         request,
         "result.html",
@@ -624,6 +682,8 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
         report=j.report,
         rows=_result_rows_for_locale(j.report, locale),
         report_notes=_report_notes(j.report, locale),
+        pelican=_pelican_preview(j.report),
+        detector_defs=detector_defs,
         tier_title=tier_title,
         tier_message=tier_message,
         caption=result_caption(
@@ -815,15 +875,104 @@ def _result_rows_for_locale(report: dict, locale: str) -> list[dict]:
     return out
 
 
+def _common_report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
+    """Protocol-agnostic diagnostic notes for Prompt Cache, System Injection,
+    Tokenizer Probe, and Stream Analysis."""
+    results = {
+        r.get("name"): r for r in report.get("results") or []
+        if isinstance(r, dict)
+    }
+    notes: list[dict[str, str]] = []
+
+    pc = results.get("prompt_cache") or {}
+    if pc and pc.get("status") not in {None, "skip"}:
+        pd = pc.get("details") if isinstance(pc.get("details"), dict) else {}
+        if pc.get("status") == "pass":
+            read_t = pd.get("call2_cache_read") or pd.get("call2_cached_tokens") or pd.get("call1_cached_tokens") or 0
+            ratio = pd.get("cache_hit_ratio_pct") or 0
+            notes.append({
+                "title": lt(locale, "Prompt Caching работает реально", "Prompt Caching verified", "提示词缓存真实生效"),
+                "body": lt(
+                    locale,
+                    f"Повторный запрос с общим префиксом попал в кэш: прочитано {read_t} кэшированных токенов ({ratio}% входа).",
+                    f"Back-to-back request hit prefix cache: {read_t} cached tokens read ({ratio}% of input).",
+                    f"连续相同前缀请求成功命中缓存：读取 {read_t} 个缓存 token（占输入 {ratio}%）。",
+                ),
+            })
+        elif pc.get("status") == "fail":
+            notes.append({
+                "title": lt(locale, "Prompt Caching не сработал", "Prompt Caching did not trigger", "提示词缓存未命中"),
+                "body": lt(
+                    locale,
+                    "На двух последовательных запросах с одинаковым префиксом >2000 токенов кэш-хит не зафиксирован (cache_read = 0). Провайдер может отбрасывать cache_control или балансировать запросы между несвязанными аккаунтами.",
+                    "Two consecutive calls with an identical >2,000-token prefix recorded 0 cached read tokens. The relay may strip cache_control or route across separate accounts.",
+                    "连续两次发送超过 2000 token 的相同前缀未检测到缓存命中 (cache_read = 0)，可能未透传 cache_control 或跨账号轮询导致缓存失效。",
+                ),
+            })
+
+    si = results.get("system_injection") or {}
+    if si and si.get("status") not in {None, "skip", "pass"}:
+        sd = si.get("details") if isinstance(si.get("details"), dict) else {}
+        bare = sd.get("bare_input_tokens")
+        canary_ok = bool(sd.get("canary_followed"))
+        if not canary_ok:
+            notes.append({
+                "title": lt(locale, "Подозрение на перезапись system prompt", "System prompt override suspected", "疑似覆盖或丢弃 system prompt"),
+                "body": lt(
+                    locale,
+                    "Модель не выполнила обязательное правило из вашего system prompt (канареечный тег не появился в ответе). Возможна подмена или удаление системного промпта на стороне релея.",
+                    "The model ignored the mandatory rule in your system prompt (canary tag missing). The relay may be stripping or overriding system prompts.",
+                    "模型未遵守用户 system prompt 中的强制金丝雀规则，relay 可能剥离或覆盖了系统提示词。",
+                ),
+            })
+        elif isinstance(bare, int) and bare > 45:
+            notes.append({
+                "title": lt(locale, "Обнаружен скрытый системный промпт в биллинге", "Hidden system-prompt token overhead detected", "检测到隐藏系统提示词注入"),
+                "body": lt(
+                    locale,
+                    f"На минимальный запрос «hi» без system prompt эндпоинт насчитал {bare} входных токенов (норма ≤ 45). Это указывает на скрытую обёртку промпта, за которую платит клиент.",
+                    f"A bare 'hi' request with no system prompt reported {bare} input tokens (clean baseline ≤ 45), suggesting a hidden system wrapper billed to the caller.",
+                    f"无 system prompt 的纯 'hi' 请求上报了 {bare} 个输入 token（正常 ≤ 45），表明代理可能在后台注入了隐藏提示词并计费。",
+                ),
+            })
+
+    tp = results.get("tokenizer_probe") or {}
+    if tp and tp.get("status") == "fail":
+        td = tp.get("details") if isinstance(tp.get("details"), dict) else {}
+        notes.append({
+            "title": lt(locale, "Аномалия токенизатора", "Tokenizer mismatch detected", "分词器特征异常"),
+            "body": lt(
+                locale,
+                f"Прирост токенов на мультибайтной/пробельной пробе (edge Δ={td.get('edge_delta')}, ws Δ={td.get('ws_delta')}) вышел за ожидаемый диапазон официального токенизатора — возможна подмена модели или неточный подсчёт биллинга.",
+                f"Token delta on multibyte/whitespace BPE probes (edge Δ={td.get('edge_delta')}, ws Δ={td.get('ws_delta')}) fell outside the expected official tokenizer band, hinting at model substitution or inaccurate token accounting.",
+                f"多字节与空白数字分词探针增量（edge Δ={td.get('edge_delta')}，ws Δ={td.get('ws_delta')}）偏离官方分词器区间，可能存在底层换模或计费偏差。",
+            ),
+        })
+
+    sa = (report.get("performance") or {}).get("stream_analysis")
+    if isinstance(sa, dict) and sa.get("verdict") == "buffered_burst":
+        notes.append({
+            "title": lt(locale, "Подозрение на буферизованный («фейковый») стрим", "Buffered / non-incremental stream detected", "疑似假流式 / 缓冲整包吐出"),
+            "body": lt(
+                locale,
+                f"Потоковый ответ пришёл почти мгновенным рывком ({sa.get('chunk_count')} чанков за {sa.get('generation_ms')} мс после долгого ожидания первого токена). Вероятно, провайдер буферизует весь ответ целиком вместо настоящего потокового стриминга.",
+                f"The streamed response arrived in a single burst ({sa.get('chunk_count')} chunks in {sa.get('generation_ms')}ms after waiting for first token), suggesting the proxy buffers the full response instead of true streaming.",
+                f"流式输出在长时间等待首 token 后几乎一次性吐出（{sa.get('chunk_count')} 个分片，耗时 {sa.get('generation_ms')}ms），代理可能缓冲了完整响应而非真流式传输。",
+            ),
+        })
+
+    return notes
+
+
 def _report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
     """Human-readable localized report notes for the result page."""
     protocol = str(report.get("protocol") or "anthropic")
     if protocol == "gemini":
-        return _gemini_report_notes(report, locale)
+        return _gemini_report_notes(report, locale) + _common_report_notes(report, locale)
     if protocol == "anthropic":
-        return _anthropic_report_notes(report, locale)
+        return _anthropic_report_notes(report, locale) + _common_report_notes(report, locale)
     if protocol != "openai":
-        return []
+        return _common_report_notes(report, locale)
 
     results = {
         r.get("name"): r for r in report.get("results") or []
@@ -923,6 +1072,7 @@ def _report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
                     "Token 统计有明显偏差,建议留意是否存在多算或统计错误。",
                 ),
             })
+    notes.extend(_common_report_notes(report, locale))
     return notes
 
 

@@ -13,6 +13,10 @@ DETECTOR_WEIGHTS: dict[str, float] = {
     "protocol": 15.0,
     "integrity": 15.0,
     "token_billing": 10.0,
+    "tokenizer_probe": 10.0,
+    "prompt_cache": 8.0,
+    "system_injection": 6.0,
+    "pelican_svg": 8.0,
     # Heavier weight than other detectors because context-window fraud is
     # one of the highest-impact lies a relay can tell. Skipped (0 effective
     # weight) when ExecutionConfig.include_long_context is False.

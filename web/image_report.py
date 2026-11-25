@@ -230,6 +230,9 @@ def _format_count(n: int | float | None) -> str:
 
 def _tokens_per_second(report: dict[str, Any]) -> float | None:
     perf = report.get("performance") or {}
+    stream_tps = perf.get("tokens_per_second")
+    if isinstance(stream_tps, (int, float)) and stream_tps > 0:
+        return round(float(stream_tps), 1)
     out = (perf.get("usage") or {}).get("output_tokens")
     latency_ms = perf.get("total_latency_ms")
     if not out or not latency_ms:
@@ -390,9 +393,12 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
         for name, label in detector_display(loc, protocol)
         if name != "long_context" or (by_name.get("long_context") or {}).get("status") != "skip"
     ]
-    row_h = min(56, max(44, int(620 / max(1, len(labels)))))
-    label_font = _load_font(19, bold=False, locale=loc)
-    status_font = _load_font(18, bold=True, locale=loc)
+    row_h = min(54, max(38, int(630 / max(1, len(labels)))))
+    compact = len(labels) >= 13
+    label_font = _load_font(17 if compact else 19, bold=False, locale=loc)
+    status_font = _load_font(16 if compact else 18, bold=True, locale=loc)
+    icon_r = 11 if compact else 13
+    text_y_off = 10 if compact else 12
 
     for i, (name, label) in enumerate(labels):
         ry = rows_top + i * row_h
@@ -406,18 +412,18 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
         icon_cx = rows_x + 20
         icon_cy = ry + row_h // 2
         if status == "pass":
-            _draw_check(d, icon_cx, icon_cy, 13, color)
+            _draw_check(d, icon_cx, icon_cy, icon_r, color)
         elif status == "skip":
             d.ellipse(
-                (icon_cx - 13, icon_cy - 13, icon_cx + 13, icon_cy + 13),
+                (icon_cx - icon_r, icon_cy - icon_r, icon_cx + icon_r, icon_cy + icon_r),
                 outline=_MUTED,
                 width=2,
             )
         else:
-            _draw_cross(d, icon_cx, icon_cy, 13, color)
+            _draw_cross(d, icon_cx, icon_cy, icon_r, color)
 
         d.text(
-            (rows_x + 52, ry + row_h // 2 - 12),
+            (rows_x + 48, ry + row_h // 2 - text_y_off),
             label,
             fill=_TEXT,
             font=label_font,
@@ -426,7 +432,7 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
         sb2 = d.textbbox((0, 0), status_text, font=status_font)
         sw2 = sb2[2] - sb2[0]
         d.text(
-            (rows_x + rows_w - sw2 - sb2[0], ry + row_h // 2 - 12),
+            (rows_x + rows_w - sw2 - sb2[0], ry + row_h // 2 - text_y_off),
             status_text,
             fill=color,
             font=status_font,

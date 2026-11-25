@@ -17,6 +17,9 @@ DETECTOR_WEIGHTS: dict[str, float] = {
     "protocol": 15.0,
     "integrity": 15.0,
     "token_usage": 10.0,
+    "tokenizer_probe": 10.0,
+    "system_injection": 6.0,
+    "pelican_svg": 8.0,
 }
 
 
@@ -26,7 +29,15 @@ MODE_DETECTORS: dict[Mode, set[str]] = {
         "model_info",
         "protocol",
     },
-    Mode.STANDARD: set(DETECTOR_WEIGHTS.keys()),
+    Mode.STANDARD: {
+        "basic_request",
+        "model_info",
+        "function_calling",
+        "structured_output",
+        "protocol",
+        "integrity",
+        "token_usage",
+    },
     Mode.FULL: set(DETECTOR_WEIGHTS.keys()),
 }
 

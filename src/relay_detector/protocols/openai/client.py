@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ...core.models import UsageMetrics
+from ...core.stream_metrics import StreamSample
 
 if TYPE_CHECKING:
     from ...core.detectors_base import PassiveDetector
@@ -217,6 +218,7 @@ class ThrottledOpenAIClient:
         self.backoff_events = 0
         self.total_usage = UsageMetrics()
         self._ttft_samples_ms: list[int] = []
+        self._stream_samples: list[dict[str, Any]] = []
 
     @property
     def base_url(self) -> str:
@@ -289,15 +291,25 @@ class ThrottledOpenAIClient:
             self.request_count += 1
             usage: dict[str, Any] | None = None
             ttft_recorded = False
+            sample = StreamSample()
             async for chunk, elapsed_ms in self._base.chat_completions_stream(**body):
-                if not ttft_recorded and _chunk_has_text_delta(chunk):
-                    self._ttft_samples_ms.append(elapsed_ms)
-                    ttft_recorded = True
+                delta_text = _chunk_delta_text(chunk)
+                if delta_text:
+                    if not ttft_recorded:
+                        self._ttft_samples_ms.append(elapsed_ms)
+                        ttft_recorded = True
+                    sample.record_delta(elapsed_ms, delta_text)
                 if isinstance(chunk.get("usage"), dict):
                     usage = chunk["usage"]
                 yield chunk, elapsed_ms
             if usage:
                 self._absorb_response_usage({"usage": usage})
+                comp = usage.get("completion_tokens")
+                if isinstance(comp, int) and not isinstance(comp, bool) and comp > 0:
+                    sample.output_tokens = comp
+            fin = sample.finalize()
+            if fin is not None:
+                self._stream_samples.append(fin)
 
     async def _with_retry(
         self,
@@ -330,17 +342,25 @@ class ThrottledOpenAIClient:
         raise last_exc if last_exc else RuntimeError("retry loop exhausted")
 
 
-def _chunk_has_text_delta(chunk: dict[str, Any]) -> bool:
+def _chunk_delta_text(chunk: dict[str, Any]) -> str:
     choices = chunk.get("choices")
     if not isinstance(choices, list):
-        return False
+        return ""
+    parts: list[str] = []
     for choice in choices:
         if not isinstance(choice, dict):
             continue
         delta = choice.get("delta")
-        if isinstance(delta, dict) and delta.get("content"):
-            return True
-    return False
+        if isinstance(delta, dict):
+            for key in ("content", "reasoning_content", "reasoning"):
+                val = delta.get(key)
+                if isinstance(val, str) and val:
+                    parts.append(val)
+    return "".join(parts)
+
+
+def _chunk_has_text_delta(chunk: dict[str, Any]) -> bool:
+    return bool(_chunk_delta_text(chunk))
 
 
 OpenAIClient = OpenAIChatClient

@@ -160,6 +160,30 @@ def _summarize_detector_result(
     elif name == "basic_request":
         if d.get("finish_reason"):
             return f"finish_reason={d['finish_reason']}"
+    elif name == "pelican_svg":
+        if d.get("valid_svg"):
+            return (
+                f"{d.get('primitive_count', 0)} shapes, "
+                f"{d.get('unique_colors', 0)} colors, "
+                f"{d.get('svg_bytes', 0)} B"
+            )
+        if d.get("reason"):
+            return str(d["reason"])[:100]
+    elif name == "prompt_cache":
+        if d.get("cache_read_hit"):
+            ratio = d.get("cache_hit_ratio_pct")
+            read_t = d.get("call2_cache_read") or d.get("call2_cached_tokens") or d.get("call1_cached_tokens") or 0
+            return f"cache HIT {read_t} tok ({ratio}%)"
+        w_t = d.get("call1_cache_creation") or 0
+        if w_t > 0:
+            return f"write {w_t} tok, read 0"
+        return "no cache hit"
+    elif name == "system_injection":
+        canary = "canary OK" if d.get("canary_followed") else "canary MISSED"
+        bare = d.get("bare_input_tokens")
+        return f"{canary}, bare={bare} tok ({d.get('overhead_label', '?')})"
+    elif name == "tokenizer_probe":
+        return f"edge Δ={d.get('edge_delta')}, ws Δ={d.get('ws_delta')}"
     return ""
 
 

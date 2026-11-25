@@ -98,6 +98,7 @@ class PerformanceMetrics(BaseModel):
     total_latency_ms: int = 0
     ttft_ms: int | None = None
     tokens_per_second: float | None = None
+    stream_analysis: dict[str, Any] | None = None
     usage: UsageMetrics = Field(default_factory=UsageMetrics)
     request_count: int = 0
     backoff_events: int = 0

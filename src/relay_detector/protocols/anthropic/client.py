@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from ...core.models import StreamEvent, UsageMetrics
+from ...core.stream_metrics import StreamSample
 
 if TYPE_CHECKING:
     from ...core.detectors_base import PassiveDetector
@@ -269,6 +270,7 @@ class ThrottledClient:
         # ack — content_block_delta is the first real model token. Min across
         # all streams ≈ best-case relay first-token latency.
         self._ttft_samples_ms: list[int] = []
+        self._stream_samples: list[dict[str, Any]] = []
 
     @property
     def base_url(self) -> str:
@@ -376,6 +378,7 @@ class ThrottledClient:
 
             request_started = time.monotonic()
             ttft_recorded = False
+            sample = StreamSample()
             try:
                 async for ev_pair in self._base.messages_stream(
                     on_headers=_capture_headers, **body
@@ -384,9 +387,19 @@ class ThrottledClient:
                     # First content_block_delta = real first token. Capture
                     # once per stream; subsequent deltas don't refine the
                     # measurement.
-                    if not ttft_recorded and ev.event == "content_block_delta":
-                        self._ttft_samples_ms.append(elapsed_ms)
-                        ttft_recorded = True
+                    if ev.event == "content_block_delta":
+                        if not ttft_recorded:
+                            self._ttft_samples_ms.append(elapsed_ms)
+                            ttft_recorded = True
+                        delta_obj = ev.data.get("delta") or {}
+                        delta_text = (
+                            delta_obj.get("text")
+                            or delta_obj.get("thinking")
+                            or delta_obj.get("partial_json")
+                            or ""
+                        )
+                        if isinstance(delta_text, str):
+                            sample.record_delta(elapsed_ms, delta_text)
                     self._absorb_stream_event(ev, local)
                     if ev.event == "message_start" and message_start_msg is None:
                         msg = ev.data.get("message")
@@ -403,6 +416,11 @@ class ThrottledClient:
                             delta_usage = u
                     yield ev_pair
             finally:
+                if local.output_tokens > 0:
+                    sample.output_tokens = local.output_tokens
+                fin = sample.finalize()
+                if fin is not None:
+                    self._stream_samples.append(fin)
                 self.total_usage.add(local)
                 if message_start_msg is not None:
                     final = self._synthesize_stream_response(

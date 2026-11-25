@@ -5,9 +5,12 @@ from .basic_request import BasicRequestDetector
 from .function_calling import FunctionCallingDetector
 from .integrity import IntegrityDetector
 from .model_info import ModelInfoDetector
+from .pelican_svg import PelicanSVGDetector
 from .protocol import ProtocolDetector
 from .structured_output import StructuredOutputDetector
+from .system_injection import SystemInjectionDetector
 from .token_usage import TokenUsageDetector
+from .tokenizer_probe import TokenizerProbeDetector
 
 
 def build_all() -> list[BaseDetector]:
@@ -19,6 +22,9 @@ def build_all() -> list[BaseDetector]:
         ProtocolDetector(),
         IntegrityDetector(),
         TokenUsageDetector(),
+        TokenizerProbeDetector(),
+        SystemInjectionDetector(),
+        PelicanSVGDetector(),
     ]
 
 
@@ -33,5 +39,8 @@ __all__ = [
     "ProtocolDetector",
     "IntegrityDetector",
     "TokenUsageDetector",
+    "TokenizerProbeDetector",
+    "SystemInjectionDetector",
+    "PelicanSVGDetector",
     "build_all",
 ]

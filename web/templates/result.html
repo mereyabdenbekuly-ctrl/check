@@ -107,6 +107,58 @@
   </div>
 </section>
 
+{% if pelican %}
+<section class="card pelican-card">
+  <div class="pelican-head">
+    <div>
+      <span class="eyebrow eyebrow-success pelican-kicker">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>{{ lt(locale, 'ВИЗУАЛЬНЫЙ ТЕСТ · ПЕЛИКАН НА ВЕЛОСИПЕДЕ (SVG)', 'VISUAL BENCHMARK · PELICAN ON A BICYCLE (SVG)', '视觉基准测试 · 鹈鹕骑自行车 (SVG)') }}</span>
+      </span>
+      <h2>{{ lt(locale, 'Как модель нарисовала пеликана на велосипеде', 'How the model drew a pelican riding a bicycle', '模型绘制的「鹈鹕骑自行车」SVG') }}</h2>
+      <p class="muted small pelican-sub">
+        {{ lt(locale,
+          'Тест Симона Уиллисона на пространственное мышление и векторную геометрию. SVG безопасно очищен и отрисован в изолированном контейнере.',
+          'Simon Willison spatial-reasoning & vector-geometry benchmark. The SVG is strictly sanitized and rendered in an isolated image sandbox.',
+          'Simon Willison 空间推理与矢量几何基准测试。SVG 已经过严格安全清洗并在隔离图像沙箱中渲染。') }}
+      </p>
+    </div>
+    <div class="pelican-actions">
+      {% if pelican.valid_svg %}
+      <button type="button" class="btn btn-secondary pelican-bg-toggle" id="pelican-bg-btn">
+        {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') }}
+      </button>
+      <a class="btn btn-secondary" href="/r/{{ job_id }}/pelican.svg" download="clodex-pelican-{{ job_id }}.svg">
+        {{ lt(locale, 'Скачать SVG', 'Download SVG', '下载 SVG') }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if pelican.valid_svg %}
+  <div class="pelican-stage" id="pelican-stage">
+    <img
+      class="pelican-img"
+      src="data:image/svg+xml;base64,{{ pelican.svg_b64 }}"
+      alt="{{ lt(locale, 'SVG пеликана на велосипеде, сгенерированный моделью', 'Model-generated SVG of a pelican riding a bicycle', '模型生成的鹈鹕骑自行车 SVG') }}"
+    />
+  </div>
+  <div class="pelican-stats">
+    <span class="hub-pill">{{ lt(locale, 'Оценка', 'Score', '评分') }}: <strong>{{ '%.0f' | format(pelican.score) }}/100</strong></span>
+    <span class="hub-pill">{{ lt(locale, 'Примитивов', 'Shapes', '图元数') }}: <strong>{{ pelican.primitive_count }}</strong></span>
+    <span class="hub-pill">{{ lt(locale, 'Цветов', 'Colors', '颜色数') }}: <strong>{{ pelican.unique_colors }}</strong></span>
+    <span class="hub-pill">{{ lt(locale, 'Размер SVG', 'SVG size', 'SVG 大小') }}: <strong>{{ '{:,}'.format(pelican.svg_bytes) }} B</strong></span>
+    {% if pelican.view_box %}<span class="hub-pill">viewBox: <code>{{ pelican.view_box }}</code></span>{% endif %}
+  </div>
+  {% else %}
+  <div class="pelican-empty">
+    <strong>{{ lt(locale, 'Модель не вернула валидный SVG', 'Model did not produce a valid SVG', '模型未返回有效 SVG') }}</strong>
+    {% if pelican.reason %}<p class="muted small">{{ pelican.reason }}</p>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
 {% if report_notes %}
 <section class="card notes-card">
   <h2>{{ lt(locale, 'Разбор результатов', 'How to read this result', '结果解读') }}</h2>
@@ -119,6 +171,7 @@
 </section>
 {% endif %}
 
+{% set sa = perf.stream_analysis or {} %}
 <section class="metrics-row metrics-row-5">
   <div class="metric{% if perf.ttft_ms and perf.ttft_ms > 2000 %} metric-warn{% endif %}">
     <div class="metric-label">{{ lt(locale, 'Первый токен', 'First token', '首 TOKEN') }}</div>
@@ -132,15 +185,24 @@
       {{ '{:,}'.format(perf.total_latency_ms or 0) }}ms
     </div>
   </div>
-  <div class="metric">
+  <div class="metric{% if sa.verdict == 'buffered_burst' %} metric-warn{% endif %}">
     <div class="metric-label">{{ lt(locale, 'Скорость (T/s)', 'Throughput (T/s)', '吞吐 (T/S)') }}</div>
-    <div class="metric-value">
+    <div class="metric-value" title="{% if sa.chunk_count %}{{ lt(locale, 'Реальная потоковая скорость: чанков ', 'True streaming throughput: chunks ', '真实流式速度：分片 ') }}{{ sa.chunk_count }}, Δ {{ sa.median_gap_ms }}ms{% endif %}">
       {% set out_t = (usage.output_tokens or 0) %}
       {% set lat = (perf.total_latency_ms or 0) %}
-      {% if out_t and lat %}
+      {% if perf.tokens_per_second %}
+        {{ '%.1f' | format(perf.tokens_per_second) }}
+      {% elif out_t and lat %}
         {{ '%.1f' | format(out_t * 1000.0 / lat) }}
       {% else %}—{% endif %}
     </div>
+    {% if sa.verdict == 'real_stream' %}
+    <div class="metric-sub is-ok">{{ lt(locale, 'Реальный стрим', 'True stream', '真流式') }} · {{ sa.chunk_count }} ch</div>
+    {% elif sa.verdict == 'buffered_burst' %}
+    <div class="metric-sub is-warn">{{ lt(locale, '⚠ Буферизованный', '⚠ Buffered burst', '⚠ 疑似假流式') }}</div>
+    {% elif sa.verdict == 'short_stream' %}
+    <div class="metric-sub">{{ lt(locale, 'Короткий стрим', 'Short stream', '短流式') }}</div>
+    {% endif %}
   </div>
   <div class="metric">
     <div class="metric-label">{{ lt(locale, 'Вход (tokens)', 'Input tokens', '输入 TOKENS') }}</div>
@@ -161,73 +223,13 @@
 
 <section class="card details-card">
   <details>
-    {% if protocol == 'openai' %}
-    <summary>{{ lt(locale, 'Что проверяет каждый из 8 детекторов OpenAI?', 'What do the 8 OpenAI checks inspect?', 'OpenAI 8 项检测分别检查什么？') }}</summary>
+    <summary>{{ lt(locale, 'Что проверяет каждый из ' ~ (detector_defs|length) ~ ' детекторов ' ~ proto_name ~ '?', 'What do the ' ~ (detector_defs|length) ~ ' ' ~ proto_name ~ ' checks inspect?', proto_name ~ ' 全部 ' ~ (detector_defs|length) ~ ' 项检测分别检查什么？') }}</summary>
     <dl class="def-list">
-      <dt>{{ lt(locale, 'Базовый запрос (Basic Request)', 'Basic Request', '基础请求 (Basic Request)') }}</dt>
-      <dd>{{ lt(locale, 'Минимальный запрос к Chat Completions для проверки доступности и корректного извлечения текста.', 'Minimal Chat Completions call verifying endpoint availability and assistant text extraction.', '发送最小 Chat Completions 请求，确认接口可用并能提取回复文本。') }}</dd>
-      <dt>{{ lt(locale, 'Согласованность модели (Model Consistency)', 'Model Consistency', '模型一致性 (Model Consistency)') }}</dt>
-      <dd>{{ lt(locale, 'Сверяет response.model с запрошенной моделью и стабильность ответов при повторных запусках.', 'Matches response.model against the requested model and checks output stability across repeated calls.', '校验 response.model 与请求模型匹配，并评估多次调用稳定性。') }}</dd>
-      <dt>{{ lt(locale, 'Вызов функций (Function Calling)', 'Function Calling', '函数调用 (Function Calling)') }}</dt>
-      <dd>{{ lt(locale, 'Принудительный tool_choice: проверяет префикс call_, type=function, имя функции и валидный JSON аргументов.', 'Forces tool_choice and verifies call_ IDs, type=function, function name, and valid JSON arguments.', '强制 tool_choice，校验 call_ ID、type=function、函数名与 JSON 参数。') }}</dd>
-      <dt>{{ lt(locale, 'Структурированный вывод (Structured Output)', 'Structured Output', '结构化输出 (Structured Output)') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет строгий response_format=json_schema (strict=true) и парсинг чистого JSON по схеме.', 'Tests response_format=json_schema (strict=true) and validates raw JSON against the schema.', '使用 response_format=json_schema (strict=true)，检查裸 JSON 是否按 schema 解析。') }}</dd>
-      <dt>{{ lt(locale, 'Протокол (Protocol)', 'Protocol', '协议规范性 (Protocol)') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет официальную структуру ответа (id, chat.completion, choices, finish_reason) и следы чужих бэкендов в usage.', 'Checks official envelope fields (id, chat.completion, choices, finish_reason) and cross-vendor usage leaks.', '校验标准响应字段及 usage 中是否混入非 OpenAI 适配层字段。') }}</dd>
-      <dt>{{ lt(locale, 'Согласованность потока (Integrity)', 'Streaming Consistency', '流式一致性 (Integrity)') }}</dt>
-      <dd>{{ lt(locale, 'Сравнивает stream и non-stream ответы на одинаковый промпт: текст, finish_reason и usage.', 'Compares streaming vs non-streaming text, finish_reason, and usage for the same prompt.', '比较同一 prompt 的 stream 与 non-stream 文本、finish_reason 和 usage。') }}</dd>
-      <dt>{{ lt(locale, 'Начисление токенов (Token Billing)', 'Token Billing', 'Token 计费 (Token Billing)') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет внутреннюю согласованность prompt_tokens / completion_tokens / total_tokens и их рост на длинных промптах.', 'Verifies prompt/completion/total token arithmetic and scaling across short vs long prompts.', '检查输入/输出 Token 统计是否自洽及长短文本增量是否合理。') }}</dd>
-      <dt>{{ lt(locale, 'Длинный контекст (Long Context)', 'Long Context', '长上下文真实性 (Long Context)') }}</dt>
-      <dd>{{ lt(locale, 'Опциональная needle-in-haystack проверка (32k → 100k → 200k+ токенов), выявляющая тихое урезание окна контекста.', 'Opt-in needle-in-haystack probe (32k → 100k → 200k+ tokens) exposing silently truncated context windows.', '可选大海捞针探针（32k → 100k → 200k+），验证宣称上下文窗口是否真实。') }}</dd>
+      {% for item in detector_defs %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.criteria }}</dd>
+      {% endfor %}
     </dl>
-    {% elif protocol == 'gemini' %}
-    <summary>{{ lt(locale, 'Что проверяет каждый из 7 детекторов Gemini?', 'What do the 7 Gemini checks inspect?', 'Gemini 7 项检测分别检查什么？') }}</summary>
-    <dl class="def-list">
-      <dt>{{ lt(locale, 'Базовый запрос', 'Basic Request', '基础请求') }}</dt>
-      <dd>{{ lt(locale, 'Минимальный OpenAI-compatible запрос к Gemini, проверка доступности и текста ответа.', 'Minimal OpenAI-compatible call verifying liveness and text output.', '发送最小 OpenAI 兼容请求，验证接口可用并返回文本。') }}</dd>
-      <dt>{{ lt(locale, 'Форма ответа модели', 'Model Response Shape', '模型响应形状') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет совпадение имени модели и обязательных полей ответа.', 'Checks model identifier matching and required response envelope fields.', '检查返回模型名匹配与核心响应字段完整性。') }}</dd>
-      <dt>{{ lt(locale, 'Вызов функций', 'Function Calling', '函数调用') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет корректность tool_calls и JSON-аргументов функции.', 'Validates tool_calls structure and parsed JSON arguments.', '验证 tool_calls 结构与 JSON 参数解析。') }}</dd>
-      <dt>{{ lt(locale, 'Структурированный вывод', 'Structured Output', '结构化输出') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет response_format=json_schema и валидацию ответа по схеме.', 'Validates response_format=json_schema adherence.', '验证 response_format=json_schema 合规性。') }}</dd>
-      <dt>{{ lt(locale, 'Протокол', 'Protocol', '协议规范性') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет структуру choices, finish_reason и совместимость с Chat Completions.', 'Checks choices, finish_reason, and Chat Completions wire shape.', '检查 choices、finish_reason 与 Chat Completions 规范。') }}</dd>
-      <dt>{{ lt(locale, 'Согласованность потока', 'Streaming Consistency', '流式一致性') }}</dt>
-      <dd>{{ lt(locale, 'Сравнивает stream и non-stream ответы, finish_reason и usage.', 'Compares stream vs non-stream text, finish_reason, and usage.', '比较流式与非流式响应文本、结束原因与用量。') }}</dd>
-      <dt>{{ lt(locale, 'Использование токенов', 'Token Usage', 'Token 用量') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет наличие usage и адекватный рост числа токенов при увеличении промпта.', 'Checks usage fields and token delta scaling across prompt lengths.', '检查 usage 字段及长短文本 Token 增量合理性。') }}</dd>
-    </dl>
-    {% else %}
-    <summary>{{ lt(locale, 'Что проверяет каждый из 12 детекторов Claude?', 'What do the 12 Claude checks inspect?', 'Claude 12 项检测分别检查什么？') }}</summary>
-    <dl class="def-list">
-      <dt>{{ lt(locale, 'Идентичность (Identity)', 'Identity', '身份一致性 (Identity)') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет самоидентификацию модели и отсутствие чужих брендов в ответе.', 'Checks self-reported identity and ensures no competing vendor brand leaks.', '验证模型自报身份，排查非 Anthropic 品牌特征。') }}</dd>
-      <dt>{{ lt(locale, 'Поведенческий отпечаток (Behavioral)', 'Behavioral Signature', '行为签名验证 (Behavioral)') }}</dt>
-      <dd>{{ lt(locale, 'Серия стилистических тестов (форматирование, структура, тон), характерных для оригинального Claude.', 'Behavioral probes evaluating stylistic and formatting patterns typical of authentic Claude.', '通过多项风格与行为指纹题验证是否符合原生 Claude 特征。') }}</dd>
-      <dt>{{ lt(locale, 'Отпечаток мышления (Thinking Signature) ★', 'Thinking Signature ★', '思维签名验证 (Thinking Signature) ★') }}</dt>
-      <dd>{{ lt(locale, 'Ключевая проверка: серверная криптографическая подпись Anthropic в thinking-блоке (extended/adaptive thinking).', 'Crown-jewel check: server-side cryptographic signature emitted by Anthropic on thinking blocks.', '核心检测：验证 Anthropic 服务端在 thinking 块中签发的加密 signature。') }}</dd>
-      <dt>{{ lt(locale, 'Согласованность модели (Consistency)', 'Model Consistency', '模型一致性 (Consistency)') }}</dt>
-      <dd>{{ lt(locale, 'Сверяет response.model с запросом и стабильность длины ответов при повторных вызовах.', 'Checks response.model matching and output stability across repeated calls.', '校验 response.model 与请求一致，并检查多次输出稳定性。') }}</dd>
-      <dt>{{ lt(locale, 'Знания (Knowledge)', 'Knowledge', '知识准确度 (Knowledge)') }}</dt>
-      <dd>{{ lt(locale, 'Контрольные вопросы об Anthropic и архитектуре Claude.', 'Factual baseline checks about Anthropic and Claude.', '关于 Anthropic 常识的基准题测试。') }}</dd>
-      <dt>{{ lt(locale, 'Распознавание PDF', 'PDF Recognition', 'PDF 文档识别') }}</dt>
-      <dd>{{ lt(locale, 'Отправляет base64 PDF с контрольной строкой — ловит релеи, вырезающие мультимодальность.', 'Sends a base64 PDF containing a magic string — catches relays that strip document blocks.', '发送带标记字符串的 base64 PDF，识别剥离多模态能力的代理。') }}</dd>
-      <dt>{{ lt(locale, 'Структурированный вывод (Tool Use)', 'Structured Output (Tool Use)', '结构化输出 (Tool Use)') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет tool_use, префикс toolu_, валидность JSON-схемы и stop_reason.', 'Checks native tool_use, toolu_ IDs, JSON schema matching, and stop_reason.', '验证 tool_use、toolu_ 前缀、JSON schema 与 stop_reason。') }}</dd>
-      <dt>{{ lt(locale, 'Протокол (Protocol)', 'Protocol', '协议规范性 (Protocol)') }}</dt>
-      <dd>{{ lt(locale, 'Пассивная проверка последовательности SSE-событий и типов content-блоков Anthropic Messages API.', 'Passive verification of Anthropic Messages SSE event order and content block types.', '被动检查 SSE 事件顺序和 content block 类型规范性。') }}</dd>
-      <dt>{{ lt(locale, 'Целостность ответа (Integrity)', 'Response Integrity', '响应完整性 (Integrity)') }}</dt>
-      <dd>{{ lt(locale, 'Сравнивает stream и non-stream ответы на один и тот же промпт (текст, input_tokens, stop_reason).', 'Compares streaming vs non-streaming text, input_tokens, and stop_reason.', '对比同一 prompt 流式与非流式的文本、input_tokens 和 stop_reason。') }}</dd>
-      <dt>{{ lt(locale, 'Использование токенов (Token Usage)', 'Token Usage', 'Token 用量') }}</dt>
-      <dd>{{ lt(locale, 'Сверяет input_tokens/output_tokens, рост на длинных текстах и кросс-проверку с /v1/messages/count_tokens.', 'Audits input/output token scaling and cross-checks against /v1/messages/count_tokens.', '校验 input/output_tokens 增量并与 count_tokens 交叉核验。') }}</dd>
-      <dt>{{ lt(locale, 'ID сообщения (Message ID)', 'Message ID', '消息标识规范 (Message ID)') }}</dt>
-      <dd>{{ lt(locale, 'Проверяет официальные префиксы msg_ для сообщений и toolu_ для инструментов.', 'Verifies official msg_ message IDs and toolu_ tool-use IDs.', '校验消息 msg_ 与工具调用 toolu_ 官方前缀规范。') }}</dd>
-      <dt>{{ lt(locale, 'Длинный контекст (Long Context)', 'Long Context', '长上下文真实性 (Long Context)') }}</dt>
-      <dd>{{ lt(locale, 'Опциональная needle-in-haystack проверка от 32k до 950k+ токенов для подтверждения реального окна контекста.', 'Opt-in needle-in-haystack probe from 32k up to 950k+ tokens verifying the advertised context window.', '可选 32k 至 950k+ 大海捞针探针，验证真实上下文容量。') }}</dd>
-    </dl>
-    {% endif %}
   </details>
 </section>
 
@@ -241,5 +243,16 @@ document.getElementById('share-btn').addEventListener('click', async () => {
     setTimeout(() => { btn.textContent = orig; }, 1600);
   } catch (e) {}
 });
+(function () {
+  const btn = document.getElementById('pelican-bg-btn');
+  const stage = document.getElementById('pelican-stage');
+  if (!btn || !stage) return;
+  const toDark = {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') | tojson }};
+  const toLight = {{ lt(locale, 'Светлый фон', 'Light canvas', '浅色背景') | tojson }};
+  btn.addEventListener('click', function () {
+    const isDark = stage.classList.toggle('is-dark');
+    btn.textContent = isDark ? toLight : toDark;
+  });
+})();
 </script>
 {% endblock %}

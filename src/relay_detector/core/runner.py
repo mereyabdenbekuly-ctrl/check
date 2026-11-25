@@ -23,6 +23,7 @@ from .models import (
     ExecutionConfig,
     PerformanceMetrics,
 )
+from .stream_metrics import summarize_stream_samples
 
 
 ThrottledClientFactory = Callable[
@@ -240,12 +241,17 @@ class Runner:
             if getattr(client, "_ttft_samples_ms", None)
             else None
         )
+        tps, stream_analysis = summarize_stream_samples(
+            getattr(client, "_stream_samples", [])
+        )
         perf = PerformanceMetrics(
             usage=getattr(client, "total_usage", PerformanceMetrics().usage),
             request_count=getattr(client, "request_count", 0),
             backoff_events=getattr(client, "backoff_events", 0),
             total_latency_ms=total_latency_ms,
             ttft_ms=ttft_ms,
+            tokens_per_second=tps,
+            stream_analysis=stream_analysis,
         )
         _emit_event(
             on_event,
