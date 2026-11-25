@@ -365,5 +365,35 @@ def test_pelican_tabs_on_all_model_pages_and_standalone_api(monkeypatch, tmp_pat
         cmp_resp = client.get(f"/compare?a={job_id}&b={job_id}")
         assert cmp_resp.status_code == 200
         assert "data:image/svg+xml;base64," in cmp_resp.text
+
+        # Async start + poll flow (avoids 120s gateway 504 on high-reasoning runs)
+        start_resp = client.post(
+            "/api/pelican/start",
+            data={
+                "protocol": "openai",
+                "base_url": "https://clodex.xyz/v1",
+                "api_key": secret_key,
+                "model": "gpt-6.2-sol",
+                "reasoning_effort": "high",
+            },
+        )
+        assert start_resp.status_code == 202
+        start_data = start_resp.json()
+        assert start_data["job_id"]
+        assert start_data["status_url"] == f"/api/pelican/status/{start_data['job_id']}"
+        assert secret_key not in start_resp.text
+
+        poll = None
+        for _ in range(20):
+            s = client.get(start_data["status_url"])
+            assert s.status_code == 200
+            poll = s.json()
+            if poll.get("status") == "done":
+                break
+        assert poll is not None and poll["status"] == "done"
+        assert poll["ok"] is True
+        assert poll["pelican"]["valid_svg"] is True
+        assert secret_key not in str(poll)
+        jobs._JOBS.pop(start_data["job_id"], None)
     finally:
         jobs._JOBS.pop(job_id, None)

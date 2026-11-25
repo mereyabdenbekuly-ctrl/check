@@ -594,7 +594,7 @@ async def _execute_pelican_detector(
     model: str,
     protocol: str,
     reasoning_effort: str | None = None,
-    timeout_s: float = 150.0,
+    timeout_s: float = 240.0,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run ONLY the streamed PelicanSVGDetector and capture live stream metrics."""
     started = time.perf_counter()
@@ -648,27 +648,14 @@ async def _execute_pelican_detector(
     return json.loads(res.model_dump_json()), perf
 
 
-async def run_pelican(
+def _build_pelican_report(
+    proto: str,
     base_url: str,
     api_key: str,
     model: str,
-    protocol: str = "anthropic",
-    reasoning_effort: str | None = None,
-) -> tuple[str, dict[str, Any]]:
-    """Run a standalone Pelican-on-a-bicycle SVG check and persist a shareable report.
-
-    API keys are NEVER written to disk or returned in the report payload.
-    """
-    proto = protocol if protocol in {"anthropic", "openai", "gemini"} else "anthropic"
-    async with _SEMA:
-        result_dict, perf = await _execute_pelican_detector(
-            base_url,
-            api_key,
-            model,
-            proto,
-            reasoning_effort=reasoning_effort,
-        )
-
+    result_dict: dict[str, Any],
+    perf: dict[str, Any],
+) -> dict[str, Any]:
     score = float(result_dict.get("score") or 0.0)
     status = str(result_dict.get("status") or "fail")
     if status == "pass":
@@ -678,8 +665,7 @@ async def run_pelican(
     else:
         verdict = "failed"
 
-    job_id = _new_job_id()
-    report_dict: dict[str, Any] = {
+    return {
         "protocol": proto,
         "tier": "visual",
         "tier_title": "Пеликан-тест (SVG)",
@@ -701,6 +687,31 @@ async def run_pelican(
         "self_reported_identity": None,
         "detected_non_anthropic_brands": [],
     }
+
+
+async def run_pelican(
+    base_url: str,
+    api_key: str,
+    model: str,
+    protocol: str = "anthropic",
+    reasoning_effort: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Run a standalone Pelican-on-a-bicycle SVG check and persist a shareable report.
+
+    API keys are NEVER written to disk or returned in the report payload.
+    """
+    proto = protocol if protocol in {"anthropic", "openai", "gemini"} else "anthropic"
+    async with _SEMA:
+        result_dict, perf = await _execute_pelican_detector(
+            base_url,
+            api_key,
+            model,
+            proto,
+            reasoning_effort=reasoning_effort,
+        )
+
+    job_id = _new_job_id()
+    report_dict = _build_pelican_report(proto, base_url, api_key, model, result_dict, perf)
     report_path(job_id, proto).write_text(
         json.dumps(report_dict, indent=2, ensure_ascii=False),
         encoding="utf-8",
@@ -720,3 +731,70 @@ async def run_pelican(
             report=report_dict,
         )
     return job_id, report_dict
+
+
+async def submit_pelican(
+    base_url: str,
+    api_key: str,
+    model: str,
+    protocol: str = "anthropic",
+    reasoning_effort: str | None = None,
+) -> str:
+    """Queue an async Pelican SVG job so long high-reasoning runs never hit
+    reverse-proxy 504 timeouts."""
+    proto = protocol if protocol in {"anthropic", "openai", "gemini"} else "anthropic"
+    job_id = _new_job_id()
+    job = Job(
+        id=job_id,
+        protocol=proto,
+        status="queued",
+        base_url=base_url,
+        target_model=model,
+        mode="pelican",
+        detector_order=["pelican_svg"],
+    )
+    async with _LOCK:
+        _JOBS[job_id] = job
+    asyncio.create_task(
+        _run_pelican_job(job_id, base_url, api_key, model, proto, reasoning_effort)
+    )
+    return job_id
+
+
+async def _run_pelican_job(
+    job_id: str,
+    base_url: str,
+    api_key: str,
+    model: str,
+    proto: str,
+    reasoning_effort: str | None,
+) -> None:
+    async with _SEMA:
+        async with _LOCK:
+            if job_id in _JOBS:
+                _JOBS[job_id].status = "running"
+                _JOBS[job_id].started_at = time.time()
+        try:
+            result_dict, perf = await _execute_pelican_detector(
+                base_url,
+                api_key,
+                model,
+                proto,
+                reasoning_effort=reasoning_effort,
+            )
+            report_dict = _build_pelican_report(proto, base_url, api_key, model, result_dict, perf)
+            report_path(job_id, proto).write_text(
+                json.dumps(report_dict, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            async with _LOCK:
+                if job_id in _JOBS:
+                    _JOBS[job_id].status = "done"
+                    _JOBS[job_id].report = report_dict
+                    _JOBS[job_id].finished_at = time.time()
+        except Exception as e:  # noqa: BLE001
+            async with _LOCK:
+                if job_id in _JOBS:
+                    _JOBS[job_id].status = "error"
+                    _JOBS[job_id].error = f"{type(e).__name__}: {e}"
+                    _JOBS[job_id].finished_at = time.time()

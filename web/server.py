@@ -727,16 +727,14 @@ async def api_detect_gemini(
     return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
 
 
-@app.post("/api/pelican")
-async def api_pelican(
+def _validate_pelican_request(
     request: Request,
-    protocol: str = Form("anthropic"),
-    base_url: str = Form(...),
-    api_key: str = Form(...),
-    model: str = Form(...),
-    reasoning_effort: str = Form("auto"),
-) -> JSONResponse:
-    """Run the standalone Pelican-on-a-bicycle SVG test (single streamed call)."""
+    protocol: str,
+    base_url: str,
+    api_key: str,
+    model: str,
+    reasoning_effort: str,
+) -> tuple[str, str, str, str, str]:
     ip = _client_ip(request)
     allowed, retry_after = check_rate(ip, limit=20, window_s=60.0)
     if not allowed:
@@ -766,23 +764,19 @@ async def api_pelican(
         raise HTTPException(status_code=400, detail="api_key looks invalid")
     if not model or len(model) > 200:
         raise HTTPException(status_code=400, detail="model must be 1–200 chars")
+    return proto, base_url, api_key, model, effort
 
-    job_id, report = await jobs.run_pelican(
-        base_url,
-        api_key,
-        model,
-        protocol=proto,
-        reasoning_effort=effort,
-    )
+
+def _pelican_json_payload(job_id: str, report: dict) -> dict:
     pelican = _pelican_preview(report) or {}
     pelican_public = {k: v for k, v in pelican.items() if k != "svg_raw"}
     # NOTE: never echo api_key back in the response
-    return JSONResponse({
+    return {
         "ok": bool(pelican_public.get("valid_svg")),
         "job_id": job_id,
-        "protocol": proto,
-        "model": model,
-        "base_url": base_url,
+        "protocol": report.get("protocol", "anthropic"),
+        "model": report.get("target_model", ""),
+        "base_url": report.get("base_url", ""),
         "total_score": report.get("total_score", 0.0),
         "verdict": report.get("verdict", "failed"),
         "error": report.get("run_error"),
@@ -792,7 +786,75 @@ async def api_pelican(
         "svg_url": f"/r/{job_id}/pelican.svg",
         "jpg_url": f"/r/{job_id}.jpg",
         "compare_url": f"/compare?a={job_id}",
-    })
+    }
+
+
+@app.post("/api/pelican/start")
+async def api_pelican_start(
+    request: Request,
+    protocol: str = Form("anthropic"),
+    base_url: str = Form(...),
+    api_key: str = Form(...),
+    model: str = Form(...),
+    reasoning_effort: str = Form("auto"),
+) -> JSONResponse:
+    """Queue an async Pelican SVG run and return immediately so long
+    high-reasoning generations never hit 120s gateway 504 timeouts."""
+    proto, base_url, api_key, model, effort = _validate_pelican_request(
+        request, protocol, base_url, api_key, model, reasoning_effort
+    )
+    job_id = await jobs.submit_pelican(
+        base_url,
+        api_key,
+        model,
+        protocol=proto,
+        reasoning_effort=effort,
+    )
+    return JSONResponse(
+        {"job_id": job_id, "status_url": f"/api/pelican/status/{job_id}"},
+        status_code=202,
+    )
+
+
+@app.get("/api/pelican/status/{job_id}")
+async def api_pelican_status(job_id: str) -> JSONResponse:
+    j = await jobs.get(job_id)
+    if j is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    if j.status == "done" and j.report is not None:
+        return JSONResponse({"status": "done", **_pelican_json_payload(j.id, j.report)})
+    if j.status == "error":
+        return JSONResponse({"status": "error", "job_id": j.id, "error": j.error or "Pelican run failed"})
+    now = time.time()
+    elapsed_ms = (
+        max(0, int((now - j.started_at) * 1000))
+        if j.started_at is not None
+        else 0
+    )
+    return JSONResponse({"status": j.status, "job_id": j.id, "elapsed_ms": elapsed_ms})
+
+
+@app.post("/api/pelican")
+async def api_pelican(
+    request: Request,
+    protocol: str = Form("anthropic"),
+    base_url: str = Form(...),
+    api_key: str = Form(...),
+    model: str = Form(...),
+    reasoning_effort: str = Form("auto"),
+) -> JSONResponse:
+    """Run the standalone Pelican-on-a-bicycle SVG test (single streamed call)."""
+    proto, base_url, api_key, model, effort = _validate_pelican_request(
+        request, protocol, base_url, api_key, model, reasoning_effort
+    )
+    job_id, report = await jobs.run_pelican(
+        base_url,
+        api_key,
+        model,
+        protocol=proto,
+        reasoning_effort=effort,
+    )
+    return JSONResponse(_pelican_json_payload(job_id, report))
 
 
 @app.get("/api/status/{job_id}")

@@ -670,13 +670,45 @@
         fd.set('reasoning_effort', effortEl.value);
       }
       try {
-        const r = await fetch('/api/pelican', {method: 'POST', body: fd});
-        const j = await r.json().catch(() => ({detail: 'request failed'}));
-        if (!r.ok) {
-          const msg = typeof j.detail === 'string' ? j.detail : ('HTTP ' + r.status);
+        const startResp = await fetch('/api/pelican/start', {method: 'POST', body: fd});
+        const startJson = await startResp.json().catch(() => ({detail: 'request failed'}));
+        if (!startResp.ok) {
+          const msg = typeof startJson.detail === 'string' ? startJson.detail : ('HTTP ' + startResp.status);
           throw new Error(msg);
         }
-        renderPelicanInline(j);
+        const statusUrl = startJson.status_url || ('/api/pelican/status/' + startJson.job_id);
+        let pollErrors = 0;
+        let finalPayload = null;
+        const deadline = Date.now() + 260000;
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          let sr, sj;
+          try {
+            sr = await fetch(statusUrl, {cache: 'no-store'});
+            sj = await sr.json().catch(() => null);
+          } catch (_) {
+            pollErrors += 1;
+            if (pollErrors >= 5) throw new Error('Connection lost while waiting for Pelican SVG');
+            continue;
+          }
+          if (!sr.ok || !sj) {
+            pollErrors += 1;
+            if (pollErrors >= 5) throw new Error('HTTP ' + (sr ? sr.status : 'error'));
+            continue;
+          }
+          pollErrors = 0;
+          if (sj.status === 'done') {
+            finalPayload = sj;
+            break;
+          }
+          if (sj.status === 'error') {
+            throw new Error(sj.error || 'Pelican generation failed');
+          }
+        }
+        if (!finalPayload) {
+          throw new Error('Pelican generation timed out after 4 minutes');
+        }
+        renderPelicanInline(finalPayload);
       } catch (e) {
         errBox.hidden = false;
         errBox.textContent = e.message || (i18n.submit_failed || 'Submission failed');
