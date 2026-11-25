@@ -1462,7 +1462,7 @@ def _report_notes(report: dict, locale: str = "ru") -> list[dict[str, str]]:
 
     structured = results.get("structured_output") or {}
     sd = structured.get("details") if isinstance(structured.get("details"), dict) else {}
-    if structured.get("status") != "pass":
+    if structured and structured.get("status") not in ("pass", "skip"):
         text = str(sd.get("response_text") or "").strip().replace("\n", " ")
         if len(text) > 180:
             text = text[:180] + "..."
@@ -1601,7 +1601,7 @@ def _gemini_report_notes(report: dict, locale: str = "ru") -> list[dict[str, str
 
     structured = results.get("structured_output") or {}
     sd = structured.get("details") if isinstance(structured.get("details"), dict) else {}
-    if structured.get("status") != "pass":
+    if structured and structured.get("status") not in ("pass", "skip"):
         notes.append({
             "title": lt(locale, "Structured Output не сработал", "Structured output did not take effect", "结构化输出没有真正生效"),
             "body": (sd.get("evaluation_zh") if locale == "zh" else None) or lt(
@@ -1646,7 +1646,7 @@ def _gemini_report_notes(report: dict, locale: str = "ru") -> list[dict[str, str
             ),
         })
 
-    if not notes:
+    if not notes and report.get("mode") != "pelican":
         notes.append({
             "title": lt(locale, "Gemini OpenAI-совместимый протокол работает корректно", "Gemini OpenAI-compatible protocol looks healthy", "Gemini OpenAI 兼容协议表现良好"),
             "body": lt(

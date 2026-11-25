@@ -394,6 +394,31 @@ def test_pelican_tabs_on_all_model_pages_and_standalone_api(monkeypatch, tmp_pat
         assert poll["ok"] is True
         assert poll["pelican"]["valid_svg"] is True
         assert secret_key not in str(poll)
+
+        # Pelican-only reports must never show false "Structured Output failed" warnings
+        oai_page = client.get(f"/r/{start_data['job_id']}")
+        assert oai_page.status_code == 200
+        assert "Structured Output не сработал" not in oai_page.text
         jobs._JOBS.pop(start_data["job_id"], None)
+
+        gem_start = client.post(
+            "/api/pelican/start",
+            data={
+                "protocol": "gemini",
+                "base_url": "https://clodex.xyz/v1",
+                "api_key": secret_key,
+                "model": "gemini-4-neon",
+                "reasoning_effort": "xhigh",
+            },
+        )
+        assert gem_start.status_code == 202
+        gem_id = gem_start.json()["job_id"]
+        for _ in range(20):
+            if client.get(f"/api/pelican/status/{gem_id}").json().get("status") == "done":
+                break
+        gem_page = client.get(f"/r/{gem_id}")
+        assert gem_page.status_code == 200
+        assert "Structured Output не сработал" not in gem_page.text
+        jobs._JOBS.pop(gem_id, None)
     finally:
         jobs._JOBS.pop(job_id, None)
