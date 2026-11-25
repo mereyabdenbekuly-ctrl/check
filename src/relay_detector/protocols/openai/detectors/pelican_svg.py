@@ -50,9 +50,10 @@ class PelicanSVGDetector(ActiveDetector):
         chunks: list[str] = []
         chunk_count = 0
         effort = _resolve_openai_effort(model, self.reasoning_effort)
+        max_toks = 24576 if effort in ("xhigh", "max") else MAX_COMPLETION_TOKENS
         base_body: dict = {
             "model": model,
-            "max_completion_tokens": MAX_COMPLETION_TOKENS,
+            "max_completion_tokens": max_toks,
             "messages": [{"role": "user", "content": PELICAN_PROMPT}],
             "stream_options": {"include_usage": True},
         }
@@ -64,10 +65,16 @@ class PelicanSVGDetector(ActiveDetector):
             no_so = dict(base_body)
             no_so.pop("stream_options", None)
             attempts.append(no_so)
+        if effort in ("xhigh", "max"):
+            downgraded = dict(base_body)
+            downgraded["reasoning_effort"] = "high"
+            downgraded["max_completion_tokens"] = MAX_COMPLETION_TOKENS
+            attempts.append(downgraded)
         if "reasoning_effort" in base_body:
             no_re = dict(base_body)
             no_re.pop("reasoning_effort", None)
             no_re.pop("stream_options", None)
+            no_re["max_completion_tokens"] = MAX_COMPLETION_TOKENS
             attempts.append(no_re)
 
         effective_effort = effort

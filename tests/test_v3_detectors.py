@@ -308,6 +308,8 @@ async def test_openai_pelican_auto_reasoning_effort_and_fallback():
 
     assert _resolve_openai_effort("gpt-6.2-sol", None) == "high"
     assert _resolve_openai_effort("gpt-6.2-sol", "auto") == "high"
+    assert _resolve_openai_effort("gpt-6.2-sol", "xhigh") == "xhigh"
+    assert _resolve_openai_effort("gpt-6.2-sol", "max") == "max"
     assert _resolve_openai_effort("gpt-6.2-sol", "medium") == "medium"
     assert _resolve_openai_effort("gpt-6.2-sol", "none") is None
     assert _resolve_openai_effort("gpt-6.2-sol-low", "auto") is None
@@ -337,3 +339,7 @@ def test_pelican_page_exposes_reasoning_effort_selector():
         r = client.get(path)
         assert r.status_code == 200
         assert 'id="pelican_reasoning_effort"' in r.text
+        assert 'value="xhigh"' in r.text
+    for path in ("/pelican", "/openai", "/claude"):
+        r = client.get(path)
+        assert 'value="max"' in r.text

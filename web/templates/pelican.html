@@ -171,8 +171,10 @@
       <div class="field">
         <label for="pelican_reasoning_effort">{{ lt(locale, 'Уровень размышлений (Reasoning)', 'Reasoning effort', '推理强度 (Reasoning)') }}</label>
         <select id="pelican_reasoning_effort" name="reasoning_effort">
-          <option value="auto" selected>{{ lt(locale, 'Авто (high для GPT-6/5/o-серии)', 'Auto (high for GPT-6/5/o-series)', '自动（GPT-6/5/o 系列默认 high）') }}</option>
-          <option value="high">{{ lt(locale, 'High (максимальное качество SVG)', 'High (best SVG geometry)', 'High（最高 SVG 几何质量）') }}</option>
+          <option value="auto" selected>{{ lt(locale, 'Авто (High для GPT-6/5/o, нативный для Claude/Gemini)', 'Auto (High for GPT-6/5/o, native for Claude/Gemini)', '自动（GPT-6/5/o 默认 High，Claude/Gemini 原生）') }}</option>
+          <option value="max">{{ lt(locale, 'Max (Claude Opus/Sonnet, GPT-6)', 'Max (Claude Opus/Sonnet, GPT-6)', 'Max（Claude Opus/Sonnet、GPT-6）') }}</option>
+          <option value="xhigh">{{ lt(locale, 'xHigh / Extra (GPT-6, Gemini 4 Neon, Claude 5)', 'xHigh / Extra (GPT-6, Gemini 4 Neon, Claude 5)', 'xHigh / Extra（GPT-6、Gemini 4 Neon、Claude 5）') }}</option>
+          <option value="high">{{ lt(locale, 'High (высокое качество SVG)', 'High (high SVG geometry)', 'High（高几何质量 SVG）') }}</option>
           <option value="medium">{{ lt(locale, 'Medium (баланс)', 'Medium (balanced)', 'Medium（均衡）') }}</option>
           <option value="low">{{ lt(locale, 'Low (быстрее)', 'Low (faster)', 'Low（更快）') }}</option>
           <option value="none">{{ lt(locale, 'По умолчанию релея (не передавать)', 'Relay default (omit)', '跟随接口默认（不传）') }}</option>

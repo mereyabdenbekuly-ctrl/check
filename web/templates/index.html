@@ -122,6 +122,8 @@
         <label for="pelican_reasoning_effort">{{ lt(locale, 'Уровень размышлений (Thinking)', 'Thinking effort', '思考强度 (Thinking)') }}</label>
         <select id="pelican_reasoning_effort" name="reasoning_effort">
           <option value="auto" selected>{{ lt(locale, 'Авто (стандарт Claude)', 'Auto (Claude default)', '自动（Claude 默认）') }}</option>
+          <option value="max">{{ lt(locale, 'Max (максимальный adaptive thinking)', 'Max (maximum adaptive thinking)', 'Max（最高自适应思考）') }}</option>
+          <option value="xhigh">{{ lt(locale, 'xHigh (сверхвысокий thinking, Claude 5/4.7+)', 'xHigh (extra-high thinking, Claude 5/4.7+)', 'xHigh（超高强度思考，Claude 5/4.7+）') }}</option>
           <option value="high">{{ lt(locale, 'High (adaptive thinking)', 'High (adaptive thinking)', 'High（自适应思考）') }}</option>
           <option value="medium">{{ lt(locale, 'Medium (баланс)', 'Medium (balanced)', 'Medium（均衡）') }}</option>
           <option value="low">{{ lt(locale, 'Low (быстрее)', 'Low (faster)', 'Low（更快）') }}</option>

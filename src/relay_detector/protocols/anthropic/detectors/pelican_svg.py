@@ -9,7 +9,7 @@ from .base import ActiveDetector
 
 
 MAX_TOKENS = 16384
-_VALID_EFFORTS = frozenset({"low", "medium", "high"})
+_VALID_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
 
 
 class PelicanSVGDetector(ActiveDetector):
@@ -37,10 +37,17 @@ class PelicanSVGDetector(ActiveDetector):
         if use_effort:
             info = lookup_model(model)
             if info is None or info.supports_adaptive_thinking:
-                kw = dict(base_kwargs)
-                kw["thinking"] = {"type": "adaptive"}
-                kw["output_config"] = {"effort": use_effort}
-                attempts.append((use_effort, kw))
+                effort_chain = (
+                    ["xhigh", "max", "high"]
+                    if use_effort == "xhigh"
+                    else (["max", "high"] if use_effort == "max" else [use_effort])
+                )
+                for eff_try in effort_chain:
+                    kw = dict(base_kwargs)
+                    kw["max_tokens"] = 24576 if eff_try in ("xhigh", "max") else MAX_TOKENS
+                    kw["thinking"] = {"type": "adaptive"}
+                    kw["output_config"] = {"effort": eff_try}
+                    attempts.append((eff_try, kw))
         attempts.append((None, base_kwargs))
 
         effective_effort: str | None = None

@@ -594,7 +594,7 @@ async def _execute_pelican_detector(
     model: str,
     protocol: str,
     reasoning_effort: str | None = None,
-    timeout_s: float = 240.0,
+    timeout_s: float = 300.0,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run ONLY the streamed PelicanSVGDetector and capture live stream metrics."""
     started = time.perf_counter()
