@@ -679,7 +679,7 @@
         const statusUrl = startJson.status_url || ('/api/pelican/status/' + startJson.job_id);
         let pollErrors = 0;
         let finalPayload = null;
-        const deadline = Date.now() + 320000;
+        const deadline = Date.now() + 500000;
         while (Date.now() < deadline) {
           await new Promise((resolve) => setTimeout(resolve, 1200));
           let sr, sj;

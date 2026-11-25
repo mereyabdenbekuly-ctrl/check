@@ -291,20 +291,15 @@ def test_result_page_pelican_showcase_svg_download_and_jpg_rendering():
 @pytest.mark.asyncio
 async def test_openai_pelican_auto_reasoning_effort_and_fallback():
     from relay_detector.protocols.openai.detectors.pelican_svg import (
-        MAX_COMPLETION_TOKENS as OAI_MAX,
         PelicanSVGDetector as OpenAIPelican,
         _resolve_openai_effort,
     )
     from relay_detector.protocols.anthropic.detectors.pelican_svg import (
-        MAX_TOKENS as ANT_MAX,
-    )
-    from relay_detector.protocols.gemini.detectors.pelican_svg import (
-        MAX_COMPLETION_TOKENS as GEM_MAX,
+        _anthropic_max_tokens,
     )
 
-    assert OAI_MAX == 16384
-    assert ANT_MAX == 16384
-    assert GEM_MAX == 16384
+    assert _anthropic_max_tokens("claude-opus-5-5") == 128_000
+    assert _anthropic_max_tokens("claude-sonnet-5-5") == 64_000
 
     assert _resolve_openai_effort("gpt-6.2-sol", None) == "high"
     assert _resolve_openai_effort("gpt-6.2-sol", "auto") == "high"
@@ -328,7 +323,7 @@ async def test_openai_pelican_auto_reasoning_effort_and_fallback():
     res = await OpenAIPelican(reasoning_effort="auto").run(_FakeClient(), "gpt-6.2-sol")
     assert res.status == "pass"
     assert seen_bodies[0].get("reasoning_effort") == "high"
-    assert seen_bodies[0].get("max_completion_tokens") == 16384
+    assert "max_completion_tokens" not in seen_bodies[0]
     assert "reasoning_effort" not in seen_bodies[-1]
     assert res.details["reasoning_effort"] == "default"
 

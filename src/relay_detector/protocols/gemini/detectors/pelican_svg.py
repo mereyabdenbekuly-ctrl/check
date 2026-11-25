@@ -7,7 +7,6 @@ from ....core.pelican import PELICAN_PROMPT, extract_and_evaluate_pelican_svg
 from .base import ActiveDetector
 
 
-MAX_COMPLETION_TOKENS = 16384
 _VALID_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
 
 
@@ -27,10 +26,10 @@ class PelicanSVGDetector(ActiveDetector):
         req_effort = (self.reasoning_effort or "").strip().lower()
         effort = req_effort if req_effort in _VALID_EFFORTS else None
 
-        max_toks = 24576 if effort in ("xhigh", "max") else MAX_COMPLETION_TOKENS
+        # Omit max_completion_tokens so Gemini uses its full native output
+        # window for both thinking tokens and detailed SVG markup.
         base_body: dict = {
             "model": model,
-            "max_completion_tokens": max_toks,
             "messages": [{"role": "user", "content": PELICAN_PROMPT}],
             "stream_options": {"include_usage": True},
         }
@@ -45,13 +44,11 @@ class PelicanSVGDetector(ActiveDetector):
         if effort in ("xhigh", "max"):
             downgraded = dict(base_body)
             downgraded["reasoning_effort"] = "high"
-            downgraded["max_completion_tokens"] = MAX_COMPLETION_TOKENS
             attempts.append(downgraded)
         if "reasoning_effort" in base_body:
             no_re = dict(base_body)
             no_re.pop("reasoning_effort", None)
             no_re.pop("stream_options", None)
-            no_re["max_completion_tokens"] = MAX_COMPLETION_TOKENS
             attempts.append(no_re)
 
         effective_effort = effort

@@ -8,8 +8,18 @@ from ..config import lookup_model
 from .base import ActiveDetector
 
 
-MAX_TOKENS = 16384
+DEFAULT_MAX_TOKENS = 64_000
+FALLBACK_MAX_TOKENS = 16_384
 _VALID_EFFORTS = frozenset({"low", "medium", "high", "xhigh", "max"})
+
+
+def _anthropic_max_tokens(model: str) -> int:
+    """Anthropic Messages API requires max_tokens; use the model's full native
+    output ceiling (64k/128k) so thinking + detailed SVG never truncate."""
+    info = lookup_model(model)
+    if info is not None and info.max_output_tokens > 0:
+        return info.max_output_tokens
+    return DEFAULT_MAX_TOKENS
 
 
 class PelicanSVGDetector(ActiveDetector):
@@ -27,10 +37,11 @@ class PelicanSVGDetector(ActiveDetector):
         chunk_count = 0
         req_effort = (self.reasoning_effort or "").strip().lower()
         use_effort = req_effort if req_effort in _VALID_EFFORTS else None
+        full_max = _anthropic_max_tokens(model)
 
         base_kwargs: dict = {
             "model": model,
-            "max_tokens": MAX_TOKENS,
+            "max_tokens": full_max,
             "messages": [{"role": "user", "content": PELICAN_PROMPT}],
         }
         attempts: list[tuple[str | None, dict]] = []
@@ -44,11 +55,14 @@ class PelicanSVGDetector(ActiveDetector):
                 )
                 for eff_try in effort_chain:
                     kw = dict(base_kwargs)
-                    kw["max_tokens"] = 24576 if eff_try in ("xhigh", "max") else MAX_TOKENS
                     kw["thinking"] = {"type": "adaptive"}
                     kw["output_config"] = {"effort": eff_try}
                     attempts.append((eff_try, kw))
         attempts.append((None, base_kwargs))
+        if full_max > FALLBACK_MAX_TOKENS:
+            fb = dict(base_kwargs)
+            fb["max_tokens"] = FALLBACK_MAX_TOKENS
+            attempts.append((None, fb))
 
         effective_effort: str | None = None
         last_err: Exception | None = None

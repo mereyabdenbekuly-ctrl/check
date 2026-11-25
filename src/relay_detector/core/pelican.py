@@ -24,7 +24,7 @@ PELICAN_PROMPT = (
     "Do not include any explanation or markdown outside the SVG."
 )
 
-MAX_SVG_BYTES = 96_000
+MAX_SVG_BYTES = 256_000
 
 _SVG_NS = "http://www.w3.org/2000/svg"
 
@@ -140,7 +140,7 @@ _DANGEROUS_VALUE_RE = re.compile(
 )
 _LOCAL_FRAGMENT_REF_RE = re.compile(r"^#[A-Za-z_][A-Za-z0-9_.:-]{0,127}$")
 _XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
-_MAX_USE_ELEMENTS = 40
+_MAX_USE_ELEMENTS = 120
 _SVG_EXTRACT_RE = re.compile(r"<svg\b[^>]*>.*?</svg>", re.IGNORECASE | re.DOTALL)
 
 
