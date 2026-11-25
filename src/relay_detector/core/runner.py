@@ -38,6 +38,18 @@ class RunOutcome:
     performance: PerformanceMetrics
 
 
+ProgressCallback = Callable[[dict[str, Any]], None]
+
+
+def _emit_event(on_event: ProgressCallback | None, payload: dict[str, Any]) -> None:
+    if on_event is None:
+        return
+    try:
+        on_event(payload)
+    except Exception:  # noqa: BLE001 — telemetry callbacks must never break a run
+        pass
+
+
 class Runner:
     def __init__(
         self,
@@ -67,7 +79,12 @@ class Runner:
             selected.append(d)
         return selected
 
-    async def run(self, model: str) -> RunOutcome:
+    async def run(
+        self,
+        model: str,
+        *,
+        on_event: ProgressCallback | None = None,
+    ) -> RunOutcome:
         selected = self._select_detectors(model)
         active = [d for d in selected if isinstance(d, ActiveDetector)]
         passive = [d for d in selected if isinstance(d, PassiveDetector)]
@@ -90,12 +107,67 @@ class Runner:
             )
             skipped.append(d.skip(reason))
 
+        plan_items: list[dict[str, Any]] = []
+        for d in self._all_detectors:
+            if d.name not in selected_names:
+                reason = (
+                    "mode-excluded"
+                    if d.name not in self._mode_detectors[self._config.mode]
+                    else "model-excluded"
+                )
+                plan_items.append(
+                    {
+                        "name": d.name,
+                        "kind": "skip",
+                        "weight": d.weight,
+                        "status": "skip",
+                        "reason": reason,
+                    }
+                )
+            elif isinstance(d, PassiveDetector):
+                plan_items.append(
+                    {
+                        "name": d.name,
+                        "kind": "passive",
+                        "weight": d.weight,
+                        "status": "observing",
+                    }
+                )
+            else:
+                plan_items.append(
+                    {
+                        "name": d.name,
+                        "kind": "active",
+                        "weight": d.weight,
+                        "status": "queued",
+                    }
+                )
+        _emit_event(on_event, {"type": "plan", "detectors": plan_items})
+
         # Inject config for detectors that branch on mode (e.g. ConsistencyDetector)
         for d in selected:
             d.config = self._config
 
         async def run_one(d: ActiveDetector) -> DetectorResult:
-            return await d._timed_run(client, model)
+            _emit_event(
+                on_event,
+                {"type": "detector_start", "name": d.name, "weight": d.weight},
+            )
+            res = await d._timed_run(client, model)
+            _emit_event(
+                on_event,
+                {
+                    "type": "detector_done",
+                    "name": res.name,
+                    "status": res.status,
+                    "score": res.score,
+                    "weight": res.weight,
+                    "duration_ms": res.duration_ms,
+                    "error": res.error,
+                    "details": res.details,
+                },
+            )
+            return res
 
         run_started = time.perf_counter()
         try:
@@ -113,6 +185,20 @@ class Runner:
                 )
                 for d in active
             ]
+            for res in active_results:
+                _emit_event(
+                    on_event,
+                    {
+                        "type": "detector_done",
+                        "name": res.name,
+                        "status": res.status,
+                        "score": res.score,
+                        "weight": res.weight,
+                        "duration_ms": res.duration_ms,
+                        "error": res.error,
+                        "details": res.details,
+                    },
+                )
         total_latency_ms = int((time.perf_counter() - run_started) * 1000)
 
         # Quick mode contains no streaming detector (integrity is the only one,
@@ -122,12 +208,29 @@ class Runner:
         # a fallback — costs ~5 output tokens (~$0.0005 on Haiku). Skip when
         # samples already exist so standard/full pay nothing extra.
         if self._ttft_probe is not None and not getattr(client, "_ttft_samples_ms", []):
+            _emit_event(on_event, {"type": "ttft_probe_start"})
             try:
                 await self._ttft_probe(client, model)
             except Exception:  # noqa: BLE001 — probe failures must not crash run
                 pass
 
-        passive_results = [d.finalize() for d in passive]
+        passive_results: list[DetectorResult] = []
+        for d in passive:
+            res = d.finalize()
+            passive_results.append(res)
+            _emit_event(
+                on_event,
+                {
+                    "type": "detector_done",
+                    "name": res.name,
+                    "status": res.status,
+                    "score": res.score,
+                    "weight": res.weight,
+                    "duration_ms": res.duration_ms,
+                    "error": res.error,
+                    "details": res.details,
+                },
+            )
 
         # TTFT: best-case first-token latency observed across all streamed
         # requests. None when no detector did a stream (e.g. quick mode with
@@ -143,6 +246,14 @@ class Runner:
             backoff_events=getattr(client, "backoff_events", 0),
             total_latency_ms=total_latency_ms,
             ttft_ms=ttft_ms,
+        )
+        _emit_event(
+            on_event,
+            {
+                "type": "run_complete",
+                "total_latency_ms": total_latency_ms,
+                "request_count": perf.request_count,
+            },
         )
 
         return RunOutcome(

@@ -1,30 +1,314 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Проверка идёт · Clodex', 'Detection in progress · Clodex', '检测进行中 · Clodex') }}{% endblock %}
+{% block title %}{{ lt(locale, 'Проверка идёт · CLODEX Check', 'Detection in progress · CLODEX Check', '检测进行中 · CLODEX Check') }}{% endblock %}
 
 {% block content %}
-<section class="card running-card" data-job-id="{{ job_id }}">
-  <div class="spinner" aria-hidden="true"></div>
-  <h2 id="status-headline">{{ lt(locale, 'Проверка идёт…', 'Detecting…', '正在检测中…') }}</h2>
-  <p class="muted">
-    {{ lt(locale, 'Целевая модель', 'Target model', '目标模型') }}:<code>{{ job.target_model }}</code> ·
-    {{ lt(locale, 'Глубина', 'Depth', '检测深度') }} <code>{{ job.mode }}</code><br/>
-    relay:<code>{{ job.base_url }}</code>
-  </p>
-  <p class="muted">
-    {{ lt(locale, 'Полный режим параллельно делает 13 запросов и обычно завершается за 90 секунд. Страница обновится автоматически, либо можно сохранить ссылку и вернуться позже.',
-            'Full mode runs 13 requests in parallel and usually finishes within 90 seconds. This page refreshes automatically; you can also bookmark it and come back later.',
-            '完整模式会并行发起 13 次接口请求,通常 90 秒内完成。本页面会自动刷新——你也可以保存本网址稍后再来查看结果。') }}
-  </p>
-  <p class="form-error" id="run-error" hidden></p>
+<section class="running-shell" data-job-id="{{ job_id }}">
+  <div class="card running-head-card">
+    <div class="running-head-top">
+      <div class="running-title-group">
+        <span class="running-pulse" id="run-pulse" aria-hidden="true"></span>
+        <div>
+          <h1 class="running-title" id="status-headline">{{ lt(locale, 'Запуск проверки…', 'Starting check…', '正在启动检测…') }}</h1>
+          <p class="running-meta muted">
+            {{ lt(locale, 'Модель', 'Model', '模型') }}: <code>{{ job.target_model }}</code> ·
+            {{ lt(locale, 'Режим', 'Mode', '模式') }}: <code>{{ job.mode }}</code> ·
+            <code>{{ job.base_url }}</code>
+          </p>
+        </div>
+      </div>
+      <div class="running-clock">
+        <span class="running-clock-label">{{ lt(locale, 'Время', 'Elapsed', '耗时') }}</span>
+        <span class="running-clock-value" id="run-elapsed">00:00</span>
+      </div>
+    </div>
+
+    <div class="running-progress-wrap">
+      <div class="running-progress-meta">
+        <span id="run-progress-text">{{ lt(locale, 'Подготовка набора проверок…', 'Preparing detector suite…', '正在初始化检测项…') }}</span>
+        <span class="running-progress-pct" id="run-progress-pct">0%</span>
+      </div>
+      <div class="running-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="run-progress-bar-wrap">
+        <div class="running-progress-fill" id="run-progress-fill" style="width: 4%"></div>
+      </div>
+    </div>
+
+    <p class="form-error" id="run-error" hidden></p>
+  </div>
+
+  <div class="running-grid">
+    <section class="card running-panel">
+      <div class="running-panel-head">
+        <h2>{{ lt(locale, 'Критерии проверки и ход выполнения', 'Verification Criteria & Live Progress', '检测标准与实时进度') }}</h2>
+        <span class="running-panel-sub muted">{{ lt(locale, 'Каждый критерий обновляется сразу после ответа эндпоинта', 'Updates immediately as each probe completes', '每项探针完成后实时更新') }}</span>
+      </div>
+      <ul class="live-check-list" id="live-check-list">
+        {% for key, label in detector_list %}
+        <li class="live-check-item is-queued" data-detector="{{ key }}">
+          <div class="live-check-top">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span class="live-check-name">{{ label }}</span>
+            <span class="live-check-weight" data-weight-slot></span>
+            <span class="live-check-badge" data-status-slot>{{ lt(locale, 'В очереди', 'Queued', '排队中') }}</span>
+          </div>
+          <p class="live-check-criteria">{{ detector_criteria_map.get(key, '') }}</p>
+          <p class="live-check-detail" data-detail-slot hidden></p>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="card running-panel running-log-panel">
+      <div class="running-panel-head">
+        <h2>{{ lt(locale, 'Живой лог событий', 'Live Event Log', '实时事件日志') }}</h2>
+        <span class="running-panel-sub muted">{{ lt(locale, 'Автообновление каждую секунду', 'Polling every 1s', '每秒自动刷新') }}</span>
+      </div>
+      <div class="live-log-terminal" id="live-log-terminal" aria-live="polite">
+        <div class="live-log-line is-info">
+          <span class="live-log-ts">00:00.0</span>
+          <span class="live-log-msg">{{ lt(locale, 'Задача создана, подключаемся к очереди проверок…', 'Job created, connecting to check runner…', '任务已创建，正在连接检测队列…') }}</span>
+        </div>
+      </div>
+      <p class="muted small running-bookmark-hint">
+        {{ lt(locale,
+          'Страница автоматически откроет полный отчёт по завершении. Вы также можете сохранить эту ссылку и вернуться позже.',
+          'This page opens the full report automatically when finished. You can also bookmark this URL and return later.',
+          '检测完成后页面会自动跳转到完整报告，也可以保存此链接稍后查看。') }}
+      </p>
+    </section>
+  </div>
 </section>
 
 <script>
 (function () {
   const id = {{ job_id|tojson }};
+  const labels = {{ detector_labels|tojson }};
+  const criteria = {{ detector_criteria_map|tojson }};
+  const copy = {{ {
+    "queued": lt(locale, "В очереди…", "Queued…", "排队中…"),
+    "running": lt(locale, "Идёт проверка эндпоинта…", "Checking endpoint…", "正在检测接口…"),
+    "done": lt(locale, "Готово! Открываем отчёт…", "Done! Loading report…", "检测完成，正在打开报告…"),
+    "failed": lt(locale, "Проверка не удалась", "Detection failed", "检测失败"),
+    "unknown_error": lt(locale, "Неизвестная ошибка", "Unknown error", "未知错误"),
+    "poll_failed": lt(locale, "Сбой опроса: ", "Polling failed: ", "轮询失败: "),
+    "badge_queued": lt(locale, "В очереди", "Queued", "排队中"),
+    "badge_running": lt(locale, "Проверяется…", "Running…", "检测中…"),
+    "badge_observing": lt(locale, "Аудит ответов", "Observing", "被动审计"),
+    "badge_pass": lt(locale, "OK", "Pass", "通过"),
+    "badge_fail": lt(locale, "Не пройдено", "Fail", "未通过"),
+    "badge_error": lt(locale, "Ошибка", "Error", "异常"),
+    "badge_skip": lt(locale, "Выкл", "Skipped", "跳过"),
+    "weight_fmt": lt(locale, "вес {w}", "weight {w}", "权重 {w}"),
+    "progress_fmt": lt(locale, "Завершено {done} из {total} проверок", "Completed {done} of {total} checks", "已完成 {done} / {total} 项检测"),
+    "ev_start": lt(locale, "Старт проверки {model} (режим {mode})", "Started check for {model} ({mode} mode)", "开始检测 {model}（{mode} 模式）"),
+    "ev_plan": lt(locale, "Сформирован план: {n} активных и пассивных проверок", "Planned {n} active & passive detectors", "已生成检测计划：共 {n} 项检测"),
+    "ev_det_start": lt(locale, "▶ Запуск: {name}", "▶ Running: {name}", "▶ 开始检测：{name}"),
+    "ev_det_done": lt(locale, "{icon} {name} — {score}/100{meta}", "{icon} {name} — {score}/100{meta}", "{icon} {name} — {score}/100{meta}"),
+    "ev_ttft": lt(locale, "⏱ Замер времени до первого токена (TTFT)…", "⏱ Measuring time-to-first-token (TTFT)…", "⏱ 正在测量首 Token 延迟 (TTFT)…"),
+    "ev_complete": lt(locale, "✓ Все проверки завершены ({reqs} запросов за {sec} с), формируем отчёт…", "✓ All checks finished ({reqs} requests in {sec}s), building report…", "✓ 全部检测已完成（共 {reqs} 次请求，耗时 {sec}s），正在生成报告…"),
+  } | tojson }};
+
   const headline = document.getElementById('status-headline');
+  const pulseEl = document.getElementById('run-pulse');
+  const elapsedEl = document.getElementById('run-elapsed');
+  const progressText = document.getElementById('run-progress-text');
+  const progressPct = document.getElementById('run-progress-pct');
+  const progressFill = document.getElementById('run-progress-fill');
+  const progressWrap = document.getElementById('run-progress-bar-wrap');
+  const listEl = document.getElementById('live-check-list');
+  const logEl = document.getElementById('live-log-terminal');
   const errBox = document.getElementById('run-error');
+
   let tries = 0;
+  let renderedEvents = 0;
+  let startedClientMs = Date.now();
+  let serverElapsedBaseMs = null;
+  let serverElapsedSyncedAt = null;
+  let finished = false;
+
+  function fmtClock(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    return m + ':' + s;
+  }
+
+  function fmtTs(ms) {
+    const sec = Math.max(0, (ms || 0) / 1000);
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const rem = (sec % 60).toFixed(1).padStart(4, '0');
+    return m + ':' + rem;
+  }
+
+  setInterval(function () {
+    if (finished) return;
+    const ms = serverElapsedBaseMs !== null
+      ? serverElapsedBaseMs + (Date.now() - serverElapsedSyncedAt)
+      : (Date.now() - startedClientMs);
+    elapsedEl.textContent = fmtClock(ms);
+  }, 500);
+
+  function ensureRow(name) {
+    let li = listEl.querySelector('li[data-detector="' + name + '"]');
+    if (li) return li;
+    li = document.createElement('li');
+    li.className = 'live-check-item is-queued';
+    li.setAttribute('data-detector', name);
+
+    const top = document.createElement('div');
+    top.className = 'live-check-top';
+    const dot = document.createElement('span');
+    dot.className = 'live-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    const title = document.createElement('span');
+    title.className = 'live-check-name';
+    title.textContent = labels[name] || name;
+    const weight = document.createElement('span');
+    weight.className = 'live-check-weight';
+    weight.setAttribute('data-weight-slot', '');
+    const badge = document.createElement('span');
+    badge.className = 'live-check-badge';
+    badge.setAttribute('data-status-slot', '');
+    badge.textContent = copy.badge_queued;
+    top.append(dot, title, weight, badge);
+
+    const crit = document.createElement('p');
+    crit.className = 'live-check-criteria';
+    crit.textContent = criteria[name] || '';
+
+    const det = document.createElement('p');
+    det.className = 'live-check-detail';
+    det.setAttribute('data-detail-slot', '');
+    det.hidden = true;
+
+    li.append(top, crit, det);
+    listEl.appendChild(li);
+    return li;
+  }
+
+  function renderDetectors(detectors) {
+    if (!Array.isArray(detectors) || !detectors.length) return;
+    for (const d of detectors) {
+      const li = ensureRow(d.name);
+      const st = d.status || 'queued';
+      li.className = 'live-check-item is-' + st;
+
+      const weightEl = li.querySelector('[data-weight-slot]');
+      if (weightEl && d.weight) {
+        weightEl.textContent = copy.weight_fmt.replace('{w}', Math.round(d.weight));
+      }
+
+      const badgeEl = li.querySelector('[data-status-slot]');
+      if (badgeEl) {
+        let txt = copy['badge_' + st] || st;
+        if ((st === 'pass' || st === 'fail') && typeof d.score === 'number') {
+          txt += ' · ' + Math.round(d.score) + '%';
+        }
+        badgeEl.textContent = txt;
+      }
+
+      const detailEl = li.querySelector('[data-detail-slot]');
+      if (detailEl) {
+        const parts = [];
+        if (typeof d.duration_ms === 'number' && d.duration_ms > 0) {
+          parts.push((d.duration_ms / 1000).toFixed(1) + 's');
+        }
+        if (d.summary) {
+          parts.push(d.summary);
+        } else if (d.error) {
+          parts.push(d.error);
+        }
+        if (parts.length && st !== 'queued' && st !== 'observing') {
+          detailEl.hidden = false;
+          detailEl.textContent = parts.join(' · ');
+        }
+      }
+    }
+  }
+
+  function formatEventLine(ev) {
+    const t = ev.type;
+    if (t === 'run_start') {
+      return {
+        cls: 'is-info',
+        text: copy.ev_start
+          .replace('{model}', ev.model || '')
+          .replace('{mode}', ev.mode || ''),
+      };
+    }
+    if (t === 'plan') {
+      return {
+        cls: 'is-info',
+        text: copy.ev_plan.replace('{n}', String(ev.active_count || ev.total_count || 0)),
+      };
+    }
+    if (t === 'detector_start') {
+      const nm = labels[ev.name] || ev.name || '';
+      return {
+        cls: 'is-run',
+        text: copy.ev_det_start.replace('{name}', nm),
+      };
+    }
+    if (t === 'detector_done') {
+      const nm = labels[ev.name] || ev.name || '';
+      const st = ev.status || 'skip';
+      const icon = st === 'pass' ? '✓' : (st === 'fail' || st === 'error' ? '✕' : '○');
+      const bits = [];
+      if (ev.summary) bits.push(ev.summary);
+      if (typeof ev.duration_ms === 'number' && ev.duration_ms > 0) {
+        bits.push((ev.duration_ms / 1000).toFixed(1) + 's');
+      }
+      const meta = bits.length ? ' (' + bits.join(', ') + ')' : '';
+      const cls = st === 'pass' ? 'is-ok' : (st === 'fail' || st === 'error' ? 'is-err' : 'is-muted');
+      return {
+        cls,
+        text: copy.ev_det_done
+          .replace('{icon}', icon)
+          .replace('{name}', nm)
+          .replace('{score}', typeof ev.score === 'number' ? String(Math.round(ev.score)) : '0')
+          .replace('{meta}', meta),
+      };
+    }
+    if (t === 'ttft_probe_start') {
+      return { cls: 'is-run', text: copy.ev_ttft };
+    }
+    if (t === 'run_complete') {
+      const sec = typeof ev.total_latency_ms === 'number'
+        ? (ev.total_latency_ms / 1000).toFixed(1)
+        : '0.0';
+      return {
+        cls: 'is-ok',
+        text: copy.ev_complete
+          .replace('{reqs}', String(ev.request_count || 0))
+          .replace('{sec}', sec),
+      };
+    }
+    return null;
+  }
+
+  function renderEvents(events) {
+    if (!Array.isArray(events) || events.length <= renderedEvents) return;
+    if (renderedEvents === 0) {
+      logEl.innerHTML = '';
+    }
+    for (let i = renderedEvents; i < events.length; i++) {
+      const ev = events[i];
+      const formatted = formatEventLine(ev);
+      if (!formatted) continue;
+      const row = document.createElement('div');
+      row.className = 'live-log-line ' + formatted.cls;
+      const ts = document.createElement('span');
+      ts.className = 'live-log-ts';
+      ts.textContent = fmtTs(ev.ts_ms);
+      const msg = document.createElement('span');
+      msg.className = 'live-log-msg';
+      msg.textContent = formatted.text;
+      row.append(ts, msg);
+      logEl.appendChild(row);
+    }
+    renderedEvents = events.length;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
 
   async function poll() {
     tries++;
@@ -32,30 +316,55 @@
       const r = await fetch('/api/status/' + id, {cache: 'no-store'});
       if (!r.ok) throw new Error('status ' + r.status);
       const j = await r.json();
+
+      if (typeof j.elapsed_ms === 'number' && j.elapsed_ms > 0) {
+        serverElapsedBaseMs = j.elapsed_ms;
+        serverElapsedSyncedAt = Date.now();
+        elapsedEl.textContent = fmtClock(j.elapsed_ms);
+      }
+
+      if (j.detectors) renderDetectors(j.detectors);
+      if (j.events) renderEvents(j.events);
+
+      if (j.progress && j.progress.total > 0) {
+        const doneCnt = j.progress.completed || 0;
+        const totCnt = j.progress.total;
+        const pct = j.status === 'done' ? 100 : Math.max(5, Math.round((doneCnt / totCnt) * 100));
+        progressText.textContent = copy.progress_fmt
+          .replace('{done}', String(doneCnt))
+          .replace('{total}', String(totCnt));
+        progressPct.textContent = pct + '%';
+        progressFill.style.width = pct + '%';
+        progressWrap.setAttribute('aria-valuenow', String(pct));
+      }
+
       if (j.status === 'done') {
-        headline.textContent = {{ lt(locale, 'Готово, загружаем отчёт…', 'Done, loading report…', '检测完成,正在加载报告…') | tojson }};
-        location.reload();
+        finished = true;
+        headline.textContent = copy.done;
+        if (pulseEl) pulseEl.classList.add('is-done');
+        progressPct.textContent = '100%';
+        progressFill.style.width = '100%';
+        setTimeout(function () { location.reload(); }, 450);
         return;
       }
       if (j.status === 'error') {
-        headline.textContent = {{ lt(locale, 'Проверка не удалась', 'Detection failed', '检测失败') | tojson }};
+        finished = true;
+        headline.textContent = copy.failed;
+        if (pulseEl) pulseEl.classList.add('is-error');
         errBox.hidden = false;
-        errBox.textContent = j.error || {{ lt(locale, 'Неизвестная ошибка', 'Unknown error', '未知错误') | tojson }};
+        errBox.textContent = j.error || copy.unknown_error;
         return;
       }
-      if (j.status === 'running') {
-        headline.textContent = {{ lt(locale, 'Проверка идёт…', 'Detecting…', '正在检测中…') | tojson }};
-      } else {
-        headline.textContent = {{ lt(locale, 'В очереди…', 'Queued…', '排队中…') | tojson }};
-      }
+      headline.textContent = j.status === 'running' ? copy.running : copy.queued;
     } catch (e) {
-      if (tries > 60) {
+      if (tries > 120) {
+        finished = true;
         errBox.hidden = false;
-        errBox.textContent = {{ lt(locale, 'Сбой опроса:', 'Polling failed:', '轮询失败:') | tojson }} + e.message;
+        errBox.textContent = copy.poll_failed + e.message;
         return;
       }
     }
-    setTimeout(poll, 2500);
+    setTimeout(poll, 1000);
   }
   poll();
 })();

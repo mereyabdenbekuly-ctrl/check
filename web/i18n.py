@@ -229,6 +229,128 @@ def detector_display(locale: str, protocol: str) -> list[tuple[str, str]]:
     return order
 
 
+def detector_labels_map(locale: str, protocol: str) -> dict[str, str]:
+    return dict(detector_display(locale, protocol))
+
+
+_DETECTOR_CRITERIA: dict[str, dict[str, dict[str, str]]] = {
+    "anthropic": {
+        "ru": {
+            "identity": "Прямой запрос самоидентификации без системного промпта: ищет признаки Claude/Anthropic и упоминания сторонних брендов.",
+            "behavioral_signature": "3 контрольных промпта на характерный стиль Claude: Markdown-выделение, структурированные списки и тон отказа.",
+            "thinking_signature": "Включает adaptive/extended thinking и проверяет криптографическую серверную подпись Anthropic (signature 500–2000 байт).",
+            "consistency": "Сверяет response.model с запрошенной моделью и измеряет стабильность длины ответов на 3 одинаковых запусках.",
+            "knowledge": "5 фактологических вопросов об Anthropic и Claude (руководство, Constitutional AI, год релиза, штаб-квартира).",
+            "pdf": "Отправляет сгенерированный PDF-документ с уникальным кодом MAGIC-... и проверяет нативное чтение PDF-вложений.",
+            "structured_output": "Запрашивает вызов инструмента get_weather: проверяет блок tool_use, префикс toolu_, JSON-схему и stop_reason=tool_use.",
+            "integrity": "Сравнивает stream (SSE) и non-stream на одном промпте: совпадение текста, char/token, stop_reason и входные/выходные токены.",
+            "token_usage": "Проверяет наличие usage, прирост input_tokens на длинном тексте, stream vs non-stream и сверку с /v1/messages/count_tokens.",
+            "protocol": "Пассивный аудит всех ответов: соответствие формату Anthropic Messages API и отсутствие артефактов чужих провайдеров.",
+            "message_id": "Пассивная проверка префиксов и структуры идентификаторов сообщений (msg_...) во всех полученных ответах.",
+            "long_context": "Опциональный тест «иголка в стоге сена» на длинном контексте (32k–1M токенов) для выявления скрытого урезания окна.",
+        },
+        "en": {
+            "identity": "Direct self-identification probe without a system prompt: checks for Claude/Anthropic signals and non-Anthropic brand leaks.",
+            "behavioral_signature": "3 behavioral probes checking characteristic Claude Markdown formatting, numbered lists, and constructive refusal tone.",
+            "thinking_signature": "Enables adaptive/extended thinking and verifies the unforgeable Anthropic server-side cryptographic signature (500–2000 B).",
+            "consistency": "Matches response.model against the requested model and checks output-token stability across 3 identical runs.",
+            "knowledge": "5 factual questions about Anthropic & Claude (leadership, Constitutional AI, launch year, headquarters).",
+            "pdf": "Sends a dynamically generated PDF containing a unique MAGIC-... token to verify native PDF document vision.",
+            "structured_output": "Calls get_weather tool: validates tool_use block, toolu_ ID prefix, JSON schema compliance, and stop_reason=tool_use.",
+            "integrity": "Compares streaming (SSE) vs non-streaming on an identical prompt: text similarity, char/token ratio, stop_reason, and token counts.",
+            "token_usage": "Checks usage presence, input_tokens growth on a longer prompt, stream vs non-stream parity, and /v1/messages/count_tokens alignment.",
+            "protocol": "Passive audit across all captured responses for Anthropic Messages JSON schema fidelity and foreign-provider artifacts.",
+            "message_id": "Passive check of message ID prefixes (msg_...) and format consistency across all responses.",
+            "long_context": "Optional needle-in-a-haystack test across 32k–1M context to detect hidden context window truncation.",
+        },
+        "zh": {
+            "identity": "无 system prompt 直接询问身份，检测是否包含 Claude/Anthropic 信号及第三方品牌泄露。",
+            "behavioral_signature": "3 组行为特征探针：检测 Claude 典型的 Markdown 粗体、编号列表与拒答语气。",
+            "thinking_signature": "开启 adaptive/extended thinking，校验无法伪造的 Anthropic 服务端加密 thinking signature（500–2000 字节）。",
+            "consistency": "核对 response.model 字段是否匹配，并通过 3 次相同请求检测输出 token 长度稳定性。",
+            "knowledge": "5 道关于 Anthropic 与 Claude 的基础事实题（管理层、Constitutional AI、发布年份、总部）。",
+            "pdf": "发送包含随机 MAGIC-... 标记的动态 PDF 文档，验证原生 PDF 解析能力。",
+            "structured_output": "触发 get_weather 工具调用：校验 tool_use 块、toolu_ 前缀、参数 JSON Schema 与 stop_reason=tool_use。",
+            "integrity": "对比同一提示词的流式 (SSE) 与非流式响应：文本相似度、char/token、stop_reason 及输入/输出 token 一致性。",
+            "token_usage": "检测 usage 完整性、长短文本 input_tokens 增量、流式与非流式对齐及 /v1/messages/count_tokens 交叉核验。",
+            "protocol": "被动审计全部响应，检查是否符合 Anthropic Messages API 协议规范且无异构转换痕迹。",
+            "message_id": "被动检查所有响应中的消息 ID 前缀 (msg_...) 及格式一致性。",
+            "long_context": "可选长上下文大海捞针测试（32k–1M），检测是否存在隐藏上下文截断。",
+        },
+    },
+    "openai": {
+        "ru": {
+            "basic_request": "Базовая доступность Chat Completions: проверяет статус ответа, choices, finish_reason и текстовый контент.",
+            "model_consistency": "Сверяет response.model с запрошенной моделью и стабильность ответа на повторных запусках.",
+            "function_calling": "Проверяет корректный вызов tool/function: tool_calls, call_id, JSON-аргументы и finish_reason=tool_calls.",
+            "structured_output": "Проверяет строгий json_schema (response_format) на точное соблюдение полей, типов и отсутствие лишнего текста.",
+            "protocol": "Пассивный аудит структуры OpenAI Chat Completions / Responses и поиск артефактов подмены бэкенда (Claude/Gemini).",
+            "integrity": "Сравнивает потоковый (SSE) и обычный ответы: совпадение текста, usage в финальном чанке и finish_reason.",
+            "token_billing": "Проверяет наличие usage, прирост prompt_tokens на длинном тексте и согласованность stream vs non-stream.",
+            "long_context": "Опциональный тест «иголка в стоге сена» на большом контексте для проверки реального размера окна.",
+        },
+        "en": {
+            "basic_request": "Basic Chat Completions sanity: validates status, choices array, finish_reason, and response text.",
+            "model_consistency": "Verifies response.model alignment and answer stability across repeated runs.",
+            "function_calling": "Tests tool/function calling: validates tool_calls array, IDs, JSON arguments, and finish_reason=tool_calls.",
+            "structured_output": "Tests strict json_schema response_format for exact keys, types, and zero extra prose.",
+            "protocol": "Passive audit of OpenAI Chat Completions schema shape and cross-provider substitution artifacts.",
+            "integrity": "Compares streaming (SSE) vs non-streaming parity: text similarity, final stream usage, and finish_reason.",
+            "token_billing": "Checks usage fields, prompt_tokens delta on longer input, and stream vs non-stream token parity.",
+            "long_context": "Optional needle-in-a-haystack long-context probe to catch silent context truncation.",
+        },
+        "zh": {
+            "basic_request": "基础 Chat Completions 可用性检测：校验响应状态、choices、finish_reason 与正文。",
+            "model_consistency": "核对 response.model 字段匹配度及多次重复请求的输出稳定性。",
+            "function_calling": "测试函数/工具调用：校验 tool_calls、ID、JSON 参数及 finish_reason=tool_calls。",
+            "structured_output": "测试严格 json_schema 结构化输出，验证字段类型与纯 JSON 格式。",
+            "protocol": "被动审计全部响应结构是否符合 OpenAI 规范，排查 Claude/Gemini 伪装痕迹。",
+            "integrity": "对比流式 (SSE) 与非流式输出：文本一致性、流尾 usage 及 finish_reason。",
+            "token_billing": "检查 usage 字段、长短输入 prompt_tokens 增量与流式/非流式计费一致性。",
+            "long_context": "可选长上下文大海捞针测试，排查隐蔽上下文截断。",
+        },
+    },
+    "gemini": {
+        "ru": {
+            "basic_request": "Базовый запрос к Gemini через OpenAI-совместимый эндпоинт: проверка ответа, choices и finish_reason.",
+            "model_info": "Проверяет форму объекта ответа и соответствие поля model заявленной модели Gemini.",
+            "function_calling": "Проверяет function calling: корректные tool_calls, валидные JSON-аргументы и finish_reason.",
+            "structured_output": "Проверяет строгий JSON Schema вывод без лишней разметки и нарушений схемы.",
+            "protocol": "Пассивный аудит всех ответов на соответствие OpenAI-совместимому контракту без битых полей.",
+            "integrity": "Сравнивает SSE-поток и обычный ответ: совпадение текста, токены и корректный конец потока.",
+            "token_usage": "Проверяет полноту usage, прирост prompt_tokens на длинном промпте и согласованность со стримом.",
+        },
+        "en": {
+            "basic_request": "Basic Gemini probe via OpenAI-compatible endpoint: checks response shape, choices, and finish_reason.",
+            "model_info": "Verifies response envelope shape and model field alignment with the requested Gemini model.",
+            "function_calling": "Validates function calling: tool_calls structure, valid JSON arguments, and finish_reason.",
+            "structured_output": "Validates strict JSON Schema output without extra prose or schema violations.",
+            "protocol": "Passive audit across all captured responses for clean OpenAI-compatible protocol compliance.",
+            "integrity": "Compares streaming (SSE) vs non-streaming output parity, token counts, and stream completion.",
+            "token_usage": "Checks usage presence, prompt_tokens growth on longer input, and stream vs non-stream alignment.",
+        },
+        "zh": {
+            "basic_request": "通过 OpenAI 兼容接口发送基础请求，校验 Gemini 响应可用性、choices 与 finish_reason。",
+            "model_info": "检查响应对象结构及 model 字段与目标 Gemini 模型的一致性。",
+            "function_calling": "测试函数调用：校验 tool_calls 结构、JSON 参数和 finish_reason。",
+            "structured_output": "测试严格 JSON Schema 输出是否符合预期字段与类型。",
+            "protocol": "被动审计全部响应的 OpenAI 兼容协议规范性。",
+            "integrity": "对比流式 (SSE) 与非流式输出文本、usage 与流结束标记。",
+            "token_usage": "验证 usage 字段完整性、长短输入 token 增量与流式/非流式一致性。",
+        },
+    },
+}
+
+
+def detector_criteria(locale: str, protocol: str) -> dict[str, str]:
+    locale = normalize_locale(locale)
+    protocol = protocol if protocol in _DETECTOR_CRITERIA else "anthropic"
+    return dict(
+        _DETECTOR_CRITERIA[protocol].get(locale)
+        or _DETECTOR_CRITERIA[protocol][DEFAULT_LOCALE]
+    )
+
+
 _STATUS_SHORT = {
     "zh": {"pass": "通过", "skip": "跳过", "error": "异常", "warn": "警告", "fail": "未通过", "unknown": "无法判断"},
     "en": {"pass": "Pass", "skip": "Skip", "error": "Error", "warn": "Warn", "fail": "Fail", "unknown": "N/A"},

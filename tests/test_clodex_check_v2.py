@@ -130,3 +130,92 @@ def test_web_routes_render_clodex_dark_theme_without_leaderboard_or_tracker():
     sitemap_resp = client.get("/sitemap.xml")
     assert sitemap_resp.status_code == 200
     assert "/leaderboard" not in sitemap_resp.text
+
+
+@pytest.mark.parametrize("locale", ["ru", "en", "zh"])
+@pytest.mark.parametrize("protocol", ["anthropic", "openai", "gemini"])
+def test_detector_criteria_covers_every_detector(locale: str, protocol: str):
+    from web.i18n import detector_criteria, detector_display
+
+    criteria = detector_criteria(locale, protocol)
+    for key, _label in detector_display(locale, protocol):
+        assert key in criteria and len(criteria[key]) >= 20
+
+
+def test_running_page_and_status_expose_live_events_and_criteria():
+    from web import jobs
+
+    job_id = "testlive1"
+    jobs._JOBS[job_id] = jobs.Job(
+        id=job_id,
+        protocol="anthropic",
+        status="running",
+        base_url="https://clodex.xyz",
+        target_model="claude-sonnet-5-5",
+        mode="full",
+        started_at=1000.0,
+        detector_order=["thinking_signature", "structured_output"],
+        detectors={
+            "thinking_signature": {
+                "name": "thinking_signature",
+                "kind": "active",
+                "weight": 25.0,
+                "status": "pass",
+                "score": 100.0,
+                "duration_ms": 4200,
+                "summary": "signature 1036 B",
+                "error": None,
+            },
+            "structured_output": {
+                "name": "structured_output",
+                "kind": "active",
+                "weight": 12.0,
+                "status": "running",
+                "score": None,
+                "duration_ms": None,
+                "summary": "",
+                "error": None,
+            },
+        },
+        events=[
+            {"ts_ms": 0, "type": "run_start", "model": "claude-sonnet-5-5", "mode": "full"},
+            {
+                "ts_ms": 4200,
+                "type": "detector_done",
+                "name": "thinking_signature",
+                "status": "pass",
+                "score": 100.0,
+                "duration_ms": 4200,
+                "summary": "signature 1036 B",
+            },
+        ],
+    )
+    try:
+        client = TestClient(app)
+        status_resp = client.get(f"/api/status/{job_id}")
+        assert status_resp.status_code == 200
+        data = status_resp.json()
+        assert data["progress"] == {"completed": 1, "total": 2}
+        assert len(data["detectors"]) == 2
+        assert len(data["events"]) == 2
+        assert data["detectors"][0]["summary"] == "signature 1036 B"
+
+        page_resp = client.get(f"/r/{job_id}")
+        assert page_resp.status_code == 200
+        assert "live-log-terminal" in page_resp.text
+        assert "live-check-list" in page_resp.text
+        assert "signature 500–2000" in page_resp.text
+    finally:
+        jobs._JOBS.pop(job_id, None)
+
+
+def test_knowledge_parser_handles_bold_markdown_numbers():
+    from relay_detector.protocols.anthropic.detectors.knowledge import _parse_numbered_answers
+
+    parsed = _parse_numbered_answers(
+        "1. Dario Amodei\n**2.** Daniela Amodei\n- 3. Principles\n**4.** 2023\n5. San Francisco",
+        5,
+    )
+    assert parsed[2] == "Daniela Amodei"
+    assert parsed[3] == "Principles"
+    assert parsed[4] == "2023"

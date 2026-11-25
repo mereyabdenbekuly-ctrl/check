@@ -21,7 +21,9 @@ from fastapi.templating import Jinja2Templates
 from . import jobs
 from .i18n import (
     detect_locale,
+    detector_criteria,
     detector_display,
+    detector_labels_map,
     html_lang,
     og_locale,
     lt,
@@ -457,6 +459,23 @@ async def api_status(job_id: str) -> JSONResponse:
     j = await jobs.get(job_id)
     if j is None:
         raise HTTPException(status_code=404, detail="job not found")
+    now = time.time()
+    elapsed_ms = (
+        max(0, int(((j.finished_at or now) - j.started_at) * 1000))
+        if j.started_at is not None
+        else 0
+    )
+    ordered_detectors = [
+        j.detectors[name]
+        for name in j.detector_order
+        if name in j.detectors
+    ]
+    non_skip = [d for d in ordered_detectors if d.get("kind") != "skip"]
+    completed = sum(
+        1
+        for d in non_skip
+        if d.get("status") in {"pass", "fail", "error", "skip"}
+    )
     payload = {
         "job_id": j.id,
         "protocol": j.protocol,
@@ -467,6 +486,13 @@ async def api_status(job_id: str) -> JSONResponse:
         "created_at": j.created_at,
         "started_at": j.started_at,
         "finished_at": j.finished_at,
+        "elapsed_ms": elapsed_ms,
+        "progress": {
+            "completed": completed,
+            "total": len(non_skip),
+        },
+        "detectors": ordered_detectors,
+        "events": j.events[-80:],
     }
     if j.status == "done":
         payload["result_url"] = f"/r/{j.id}"
@@ -577,9 +603,18 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     j = await jobs.get(job_id)
     if j is None:
         raise HTTPException(status_code=404, detail="job not found")
-    if j.status != "done" or j.report is None:
-        return _render(request, "running.html", job_id=job_id, job=j)
     locale = detect_locale(request)
+    if j.status != "done" or j.report is None:
+        proto = j.protocol or "anthropic"
+        return _render(
+            request,
+            "running.html",
+            job_id=job_id,
+            job=j,
+            detector_labels=detector_labels_map(locale, proto),
+            detector_criteria_map=detector_criteria(locale, proto),
+            detector_list=detector_display(locale, proto),
+        )
     protocol = str(j.report.get("protocol") or "anthropic")
     tier_title, tier_message = tier_banner_for_locale(locale, protocol)
     return _render(

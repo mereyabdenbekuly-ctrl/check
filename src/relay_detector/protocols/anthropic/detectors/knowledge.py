@@ -131,8 +131,8 @@ def _build_combined_prompt(coverage: list[dict]) -> str:
     return "\n\n".join(lines)
 
 
-# Match "1. answer", "2) answer", "3: answer", "  4 - answer", etc.
-_LINE_RE = re.compile(r"^\s*(\d+)\s*[\.\):\-]\s*(.+?)\s*$")
+# Match "1. answer", "**2.** answer", "- 3) answer", "  4 - answer", etc.
+_LINE_RE = re.compile(r"^\s*(?:[-*•]\s*)?(?:\*\*|__)?(\d+)\s*[\.\):\-](?:\*\*|__)?\s*(.+?)\s*$")
 
 
 def _parse_numbered_answers(text: str, n: int) -> dict[int, str]:

@@ -10,6 +10,7 @@ finishes, then is dropped from memory.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import os
 import secrets
@@ -17,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from relay_detector.models import (
     DetectionReport,
@@ -64,10 +65,109 @@ class Job:
     finished_at: float | None = None
     report: dict[str, Any] | None = None
     error: str | None = None
+    detector_order: list[str] = field(default_factory=list)
+    detectors: dict[str, dict[str, Any]] = field(default_factory=dict)
+    events: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _summarize_detector_result(
+    name: str,
+    status: str,
+    details: dict[str, Any] | None,
+    error: str | None,
+) -> str:
+    if error:
+        cleaned = " ".join(str(error).split())
+        return cleaned[:140] + ("…" if len(cleaned) > 140 else "")
+    d = details if isinstance(details, dict) else {}
+    if status == "skip":
+        reason = d.get("skip_reason") or d.get("reason")
+        if isinstance(reason, str) and reason:
+            return reason[:100]
+        return "skipped"
+    if name == "thinking_signature":
+        sig_len = d.get("signature_length")
+        t_chars = d.get("thinking_text_chars")
+        if sig_len:
+            extra = f", thinking {t_chars} ch" if t_chars else ""
+            return f"signature {sig_len} B{extra}"
+        ev = d.get("evaluation")
+        if ev:
+            return str(ev)
+    elif name == "behavioral_signature":
+        hits, total = d.get("hits"), d.get("total")
+        if hits is not None and total:
+            return f"{hits}/{total} signatures"
+    elif name == "identity":
+        req = d.get("required_hits") or []
+        brands = d.get("detected_non_anthropic_brands") or []
+        if brands:
+            return "brands: " + ", ".join(str(b) for b in brands[:3])
+        return f"signals {len(req)}/2"
+    elif name in {"consistency", "model_consistency"}:
+        parts: list[str] = []
+        if d.get("model_match") is True:
+            parts.append("model OK")
+        elif d.get("model_match") is False:
+            parts.append(f"model={d.get('response_model') or '?'}")
+        if d.get("stability_cv") is not None:
+            parts.append(f"CV={d['stability_cv']}")
+        if parts:
+            return ", ".join(parts)
+    elif name == "knowledge":
+        passes, total = d.get("passes"), d.get("total")
+        if passes is not None and total:
+            return f"{passes}/{total} answers"
+    elif name == "pdf":
+        ev = d.get("evaluation")
+        if ev == "magic_found":
+            return "MAGIC token verified"
+        if ev:
+            return str(ev)
+    elif name in {"structured_output", "function_calling"}:
+        sub = d.get("sub_checks")
+        if isinstance(sub, dict) and sub:
+            ok = sum(1 for v in sub.values() if isinstance(v, dict) and v.get("pass"))
+            return f"{ok}/{len(sub)} checks OK"
+    elif name == "integrity":
+        sub = d.get("sub_checks")
+        if isinstance(sub, dict) and sub:
+            parts = []
+            sim = sub.get("similarity")
+            if isinstance(sim, dict) and sim.get("ratio") is not None:
+                parts.append(f"sim {sim['ratio']}%")
+            inp = sub.get("input_tokens")
+            if isinstance(inp, dict) and inp.get("ns") is not None and inp.get("stream") is not None:
+                parts.append(f"in {inp['ns']}/{inp['stream']}")
+            if parts:
+                return ", ".join(parts)
+    elif name in {"token_usage", "token_billing"}:
+        sub = d.get("sub_checks")
+        if isinstance(sub, dict) and sub:
+            ok = sum(1 for v in sub.values() if isinstance(v, dict) and v.get("pass"))
+            return f"{ok}/{len(sub)} sub-checks OK"
+    elif name == "protocol":
+        obs = d.get("observation_count")
+        issues = d.get("issue_count")
+        if obs is not None and issues is not None:
+            return f"{obs} responses, {issues} issues"
+    elif name == "message_id":
+        obs = d.get("observation_count")
+        viols = d.get("violations")
+        if obs is not None:
+            v_cnt = len(viols) if isinstance(viols, list) else 0
+            return f"{obs} IDs, {v_cnt} issues"
+    elif name == "basic_request":
+        if d.get("finish_reason"):
+            return f"finish_reason={d['finish_reason']}"
+    return ""
 
 
 _JOBS: dict[str, Job] = {}
 _LOCK = asyncio.Lock()
+_CURRENT_ON_EVENT: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = (
+    contextvars.ContextVar("veridrop_on_event", default=None)
+)
 
 
 def _new_job_id() -> str:
@@ -183,9 +283,117 @@ async def _run(
                 return
             j.status = "running"
             j.started_at = time.time()
+            j.events.append(
+                {
+                    "ts_ms": 0,
+                    "type": "run_start",
+                    "model": model,
+                    "mode": mode,
+                }
+            )
+
+        run_started_wall = j.started_at or time.time()
+
+        def _record_event(ev: dict[str, Any]) -> None:
+            job_obj = _JOBS.get(job_id)
+            if job_obj is None:
+                return
+            ts_ms = max(0, int((time.time() - run_started_wall) * 1000))
+            etype = ev.get("type")
+            if etype == "plan":
+                order: list[str] = []
+                for item in ev.get("detectors") or []:
+                    dname = item.get("name")
+                    if not dname:
+                        continue
+                    order.append(dname)
+                    job_obj.detectors[dname] = {
+                        "name": dname,
+                        "kind": item.get("kind", "active"),
+                        "weight": item.get("weight", 0.0),
+                        "status": item.get("status", "queued"),
+                        "score": None,
+                        "duration_ms": None,
+                        "summary": item.get("reason") or "",
+                        "error": None,
+                    }
+                job_obj.detector_order = order
+                active_cnt = sum(
+                    1 for d in job_obj.detectors.values() if d.get("kind") != "skip"
+                )
+                job_obj.events.append(
+                    {
+                        "ts_ms": ts_ms,
+                        "type": "plan",
+                        "active_count": active_cnt,
+                        "total_count": len(order),
+                    }
+                )
+            elif etype == "detector_start":
+                dname = ev.get("name")
+                if dname:
+                    cur = job_obj.detectors.setdefault(
+                        dname,
+                        {
+                            "name": dname,
+                            "kind": "active",
+                            "weight": ev.get("weight", 0.0),
+                        },
+                    )
+                    cur["status"] = "running"
+                    job_obj.events.append(
+                        {"ts_ms": ts_ms, "type": "detector_start", "name": dname}
+                    )
+            elif etype == "detector_done":
+                dname = ev.get("name")
+                if dname:
+                    status = ev.get("status", "error")
+                    score = ev.get("score")
+                    dur = ev.get("duration_ms")
+                    err_txt = ev.get("error")
+                    summary = _summarize_detector_result(
+                        dname, status, ev.get("details"), err_txt
+                    )
+                    cur = job_obj.detectors.setdefault(
+                        dname,
+                        {
+                            "name": dname,
+                            "kind": "active",
+                            "weight": ev.get("weight", 0.0),
+                        },
+                    )
+                    cur["status"] = status
+                    cur["score"] = score
+                    cur["duration_ms"] = dur
+                    cur["summary"] = summary
+                    cur["error"] = (str(err_txt)[:160] if err_txt else None)
+                    job_obj.events.append(
+                        {
+                            "ts_ms": ts_ms,
+                            "type": "detector_done",
+                            "name": dname,
+                            "status": status,
+                            "score": score,
+                            "duration_ms": dur,
+                            "summary": summary,
+                        }
+                    )
+            elif etype == "ttft_probe_start":
+                job_obj.events.append({"ts_ms": ts_ms, "type": "ttft_probe_start"})
+            elif etype == "run_complete":
+                job_obj.events.append(
+                    {
+                        "ts_ms": ts_ms,
+                        "type": "run_complete",
+                        "total_latency_ms": ev.get("total_latency_ms"),
+                        "request_count": ev.get("request_count"),
+                    }
+                )
 
         try:
-            cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3)
+            cfg = ExecutionConfig.for_mode(
+                Mode(mode), max_concurrent=3, request_timeout_s=45.0
+            )
             cfg.include_long_context = include_long_context
             cfg.include_long_context_extreme = include_long_context_extreme
             # Long-context probes blow past the regular per-mode wall-clock
@@ -199,37 +407,41 @@ async def _run(
                 cfg.overall_timeout_s = max(cfg.overall_timeout_s, 900.0)
             elif include_long_context:
                 cfg.overall_timeout_s = max(cfg.overall_timeout_s, 300.0)
-            if protocol == "openai":
-                outcome = await _run_openai(base_url, api_key, model, cfg)
-                report_protocol = Protocol.OPENAI
-                report_tier = DetectionTier.BEHAVIORAL
-                tier_title = "行为/协议级验证"
-                tier_message = (
-                    "本检测无法可靠区分高配模型真品与低配模型伪装。"
-                    "我们检测的是relay接口是否符合 OpenAI Chat Completions 协议规范、"
-                    "能力是否完整、usage 字段是否符合官方响应形状。"
-                )
-            elif protocol == "gemini":
-                outcome = await _run_gemini(base_url, api_key, model, cfg)
-                report_protocol = Protocol.GEMINI
-                report_tier = DetectionTier.PROTOCOL
-                tier_title = "协议级验证"
-                tier_message = (
-                    "本检测通过 OpenAI 兼容协议 (POST /chat/completions) 探测 Gemini relay,"
-                    "验证响应字段、tool 调用、结构化输出、流式一致性和 usage 字段是否符合 OpenAI 规范。"
-                    "它不提供加密级模型真伪证明。"
-                )
-            elif protocol == "anthropic":
-                outcome = await _run_anthropic(base_url, api_key, model, cfg)
-                report_protocol = Protocol.ANTHROPIC
-                report_tier = DetectionTier.CRYPTOGRAPHIC
-                tier_title = "加密级验证"
-                tier_message = (
-                    "Claude thinking signature 来自 Anthropic 服务端签名。"
-                    "通过该项时,它是当前检测集中最高可信度的真伪信号。"
-                )
-            else:
-                raise ValueError(f"unsupported protocol: {protocol}")
+            ev_token = _CURRENT_ON_EVENT.set(_record_event)
+            try:
+                if protocol == "openai":
+                    outcome = await _run_openai(base_url, api_key, model, cfg)
+                    report_protocol = Protocol.OPENAI
+                    report_tier = DetectionTier.BEHAVIORAL
+                    tier_title = "行为/协议级验证"
+                    tier_message = (
+                        "本检测无法可靠区分高配模型真品与低配模型伪装。"
+                        "我们检测的是relay接口是否符合 OpenAI Chat Completions 协议规范、"
+                        "能力是否完整、usage 字段是否符合官方响应形状。"
+                    )
+                elif protocol == "gemini":
+                    outcome = await _run_gemini(base_url, api_key, model, cfg)
+                    report_protocol = Protocol.GEMINI
+                    report_tier = DetectionTier.PROTOCOL
+                    tier_title = "协议级验证"
+                    tier_message = (
+                        "本检测通过 OpenAI 兼容协议 (POST /chat/completions) 探测 Gemini relay,"
+                        "验证响应字段、tool 调用、结构化输出、流式一致性和 usage 字段是否符合 OpenAI 规范。"
+                        "它不提供加密级模型真伪证明。"
+                    )
+                elif protocol == "anthropic":
+                    outcome = await _run_anthropic(base_url, api_key, model, cfg)
+                    report_protocol = Protocol.ANTHROPIC
+                    report_tier = DetectionTier.CRYPTOGRAPHIC
+                    tier_title = "加密级验证"
+                    tier_message = (
+                        "Claude thinking signature 来自 Anthropic 服务端签名。"
+                        "通过该项时,它是当前检测集中最高可信度的真伪信号。"
+                    )
+                else:
+                    raise ValueError(f"unsupported protocol: {protocol}")
+            finally:
+                _CURRENT_ON_EVENT.reset(ev_token)
 
             run_error = fatal_run_error(outcome.results)
             score = 0.0 if run_error else compute_total(outcome.results)
@@ -303,7 +515,7 @@ async def _run_anthropic(
 
     async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
-        return await runner.run(model)
+        return await runner.run(model, on_event=_CURRENT_ON_EVENT.get())
 
 
 async def _run_openai(
@@ -320,7 +532,7 @@ async def _run_openai(
 
     async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
-        return await runner.run(model)
+        return await runner.run(model, on_event=_CURRENT_ON_EVENT.get())
 
 
 async def _run_gemini(
@@ -337,4 +549,4 @@ async def _run_gemini(
 
     async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
-        return await runner.run(model)
+        return await runner.run(model, on_event=_CURRENT_ON_EVENT.get())
