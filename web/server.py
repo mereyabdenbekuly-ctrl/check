@@ -10,6 +10,7 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi import Response as FastAPIResponse
@@ -37,7 +38,7 @@ from .i18n import (
 )
 from .faq_data import categories as faq_categories, faqpage_jsonld, total_question_count
 from .image_report import render_report_jpg
-from .probe import probe_model_alive, probe_relay
+from .probe import is_dns_resolution_error, probe_model_alive, probe_relay
 from .ratelimit import check_rate
 
 
@@ -520,6 +521,15 @@ async def _preflight_or_422(
     if alive:
         return
     if alive is None:
+        if is_dns_resolution_error(err):
+            host = (urlparse(base_url).hostname or base_url).strip()
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Домен {host} не найден (DNS). "
+                    "Проверьте правильность Base URL (например https://clodex.xyz)."
+                ),
+            )
         # Transport uncertainty (timeout/network blip) must not block the
         # real detector run. Slow frontier models such as GPT-5.5 can exceed
         # the tiny preflight budget while still working in the full check.

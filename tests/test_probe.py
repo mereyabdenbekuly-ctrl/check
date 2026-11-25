@@ -635,3 +635,11 @@ async def test_probe_model_alive_unknown_protocol_fails_gracefully():
     alive, err = await probe_model_alive("https://x", "sk", "m", "klingon")
     assert alive is False
     assert "klingon" in err
+
+
+def test_is_dns_resolution_error_detects_typos_not_timeouts():
+    from web.probe import is_dns_resolution_error
+    assert is_dns_resolution_error("ConnectError: [Errno -2] Name or service not known") is True
+    assert is_dns_resolution_error("ConnectError: [Errno 8] nodename nor servname provided") is True
+    assert is_dns_resolution_error("ReadTimeout: timed out") is False
+    assert is_dns_resolution_error(None) is False

@@ -162,7 +162,14 @@ async def probe_relay(
                                 seen.add(mid)
                                 ids.append(mid)
     except (httpx.TimeoutException, httpx.NetworkError) as e:
-        out = _err(f"网络/超时: {type(e).__name__}", base_url, status=None)
+        if is_dns_resolution_error(str(e)):
+            out = _err(
+                f"DNS: домен не найден ({_excerpt(str(e), 90)}) — проверьте Base URL",
+                base_url,
+                status=None,
+            )
+        else:
+            out = _err(f"网络/超时: {type(e).__name__}", base_url, status=None)
         _CACHE[key] = (now, out)
         return out
     except Exception as e:  # noqa: BLE001
@@ -417,6 +424,21 @@ def _pick_best(proto: str, available: list[str]) -> str | None:
         return pick_default_model(available)
     except Exception:  # noqa: BLE001
         return available[0]
+
+
+_DNS_ERROR_MARKERS = (
+    "name or service not known",
+    "nodename nor servname",
+    "getaddrinfo failed",
+    "no address associated with hostname",
+    "temporary failure in name resolution",
+)
+
+
+def is_dns_resolution_error(err_text: str | None) -> bool:
+    """Return True when an httpx ConnectError indicates an unresolvable host."""
+    low = (err_text or "").lower()
+    return any(marker in low for marker in _DNS_ERROR_MARKERS)
 
 
 def _excerpt(text: str, n: int = 160) -> str:
