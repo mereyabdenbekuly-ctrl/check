@@ -40,12 +40,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v7" />
+  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v8" />
   {% block head_extra %}{% endblock %}
   <script>
-    window.__veridropUi = {{ ui | tojson }};
-    window.__veridropLocale = {{ locale | tojson }};
-    window.__veridropI18n = {{ {
+    window.__clodexCheckUi = {{ ui | tojson }};
+    window.__clodexCheckLocale = {{ locale | tojson }};
+    window.__clodexCheckI18n = {{ {
       "menu_open": lt(locale, "Открыть меню", "Open menu", "打开菜单"),
       "menu_close": lt(locale, "Закрыть меню", "Close menu", "关闭菜单"),
       "copied": lt(locale, "Скопировано!", "Copied!", "已复制!"),
@@ -207,6 +207,6 @@
       </a>
     </p>
   </footer>
-  <script src="/static/app.js?v=20261125-clodex-v3" defer></script>
+  <script src="/static/app.js?v=20261125-clodex-v4" defer></script>
 </body>
 </html>

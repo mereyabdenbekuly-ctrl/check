@@ -5,7 +5,7 @@
   const toggle = document.querySelector('.nav-toggle');
   const nav = document.getElementById('site-nav');
   if (!toggle || !nav) return;
-  const i18n = window.__veridropI18n || {};
+  const i18n = window.__clodexCheckI18n || {};
 
   function setOpen(open) {
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -78,7 +78,7 @@
   // Exposed so the probe layer can replace the suggestions with whatever
   // the relay actually advertises. Falls back to the static template list
   // if probe fails / relay doesn't expose /v1/models.
-  window.veridropSetModelChoices = function (values) {
+  window.clodexSetModelChoices = function (values) {
     list.innerHTML = '';
     values.forEach((v) => {
       const li = document.createElement('li');
@@ -122,7 +122,7 @@
   if (!getActiveProtocol()) return;
 
   const protoPath = {anthropic: '/claude', openai: '/openai', gemini: '/gemini'};
-  const i18n = window.__veridropI18n || {};
+  const i18n = window.__clodexCheckI18n || {};
 
   const baseUrlInput = document.getElementById('base_url');
   const apiKeyInput = document.getElementById('api_key');
@@ -177,7 +177,7 @@
     renderProbeResult(data, protocol);
   }
 
-  window.veridropRunProbe = function () {
+  window.clodexRunProbe = function () {
     lastKey = null;
     runProbe();
   };
@@ -234,11 +234,11 @@
       '<div class="probe-detail">' + escapeHtml(sample) + escapeHtml(more) + '</div>'
     );
 
-    if (window.veridropSetModelChoices) {
-      window.veridropSetModelChoices(myModels);
+    if (window.clodexSetModelChoices) {
+      window.clodexSetModelChoices(myModels);
     }
     setSubmitEnabled(true);
-    window.veridropBestByProtocol = data.best_by_protocol || {};
+    window.clodexBestByProtocol = data.best_by_protocol || {};
 
     const best = (data.best_by_protocol && data.best_by_protocol[protocol]) || myModels[0];
     if (modelInput && modelInput.value.trim() && !myModels.includes(modelInput.value.trim())) {
@@ -276,7 +276,7 @@
           }
         }
         try {
-          sessionStorage.setItem('veridrop:handoff', JSON.stringify({
+          sessionStorage.setItem('clodex_check:handoff', JSON.stringify({
             base_url: baseUrlInput.value.trim(),
             api_key: apiKeyInput.value.trim(),
             from: currentProto,
@@ -319,9 +319,9 @@
   });
 
   try {
-    const raw = sessionStorage.getItem('veridrop:handoff');
+    const raw = sessionStorage.getItem('clodex_check:handoff');
     if (raw) {
-      sessionStorage.removeItem('veridrop:handoff');
+      sessionStorage.removeItem('clodex_check:handoff');
       const data = JSON.parse(raw);
       if (data && data.base_url && data.api_key) {
         baseUrlInput.value = data.base_url;
@@ -340,7 +340,7 @@
   if (!form) return;
   const submitBtn = document.getElementById('submit-btn');
   const errBox = document.getElementById('form-error');
-  const i18n = window.__veridropI18n || {};
+  const i18n = window.__clodexCheckI18n || {};
   const isStandalonePelican = form.dataset.pelicanStandalone === 'true';
   let activeTab = isStandalonePelican ? 'pelican' : 'audit';
 
@@ -447,11 +447,11 @@
           modelInput.placeholder = defModel;
         }
         const map = window.__pelicanModelsByProtocol || {};
-        if (window.veridropSetModelChoices && Array.isArray(map[proto])) {
-          window.veridropSetModelChoices(map[proto]);
+        if (window.clodexSetModelChoices && Array.isArray(map[proto])) {
+          window.clodexSetModelChoices(map[proto]);
         }
         if (submitBtn) submitBtn.disabled = false;
-        if (window.veridropRunProbe) window.veridropRunProbe();
+        if (window.clodexRunProbe) window.clodexRunProbe();
       });
     });
   }
@@ -570,7 +570,7 @@
 
   function renderModelDeadError(detail) {
     const proto = currentProtocol();
-    const recommended = (window.veridropBestByProtocol || {})[proto];
+    const recommended = (window.clodexBestByProtocol || {})[proto];
     const dead = detail.model || 'model';
     const reason = detail.upstream_error || (i18n.upstream_rejected || 'upstream rejected the request');
 
@@ -712,7 +712,7 @@
 // section's data-mode. Choice persists in localStorage so the user
 // doesn't have to re-toggle every visit.
 (() => {
-  const STORAGE_KEY = 'veridrop_faq_mode';
+  const STORAGE_KEY = 'clodex_check_faq_mode';
   const sections = document.querySelectorAll('.faq[data-mode]');
   if (!sections.length) return;
 

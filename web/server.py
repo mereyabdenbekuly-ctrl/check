@@ -45,7 +45,7 @@ HERE = Path(__file__).resolve().parent
 TEMPLATE_DIR = HERE / "templates"
 STATIC_DIR = HERE / "static"
 
-logger = logging.getLogger("veridrop")
+logger = logging.getLogger("clodex_check")
 logger.setLevel(logging.INFO)
 
 app = FastAPI(title="Clodex", docs_url=None, redoc_url=None)
@@ -124,7 +124,7 @@ _VALID_MODES = {"quick", "standard", "full"}
 _VALID_WISHLIST_PROTOCOLS = {"openai", "gemini"}
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 WISHLIST_PATH = Path(
-    os.environ.get("VERIDROP_WISHLIST_PATH", "/opt/veridrop/web_data/wishlist.txt")
+    os.environ.get("CLODEX_CHECK_WISHLIST_PATH", "/opt/clodex-check/web_data/wishlist.txt")
 )
 
 

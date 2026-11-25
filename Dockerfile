@@ -2,8 +2,8 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    VERIDROP_JOBS_DIR=/data/jobs \
-    VERIDROP_WISHLIST_PATH=/data/wishlist.txt
+    CLODEX_CHECK_JOBS_DIR=/data/jobs \
+    CLODEX_CHECK_WISHLIST_PATH=/data/wishlist.txt
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-dejavu-core \

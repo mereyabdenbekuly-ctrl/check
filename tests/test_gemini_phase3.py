@@ -156,9 +156,9 @@ class FakeChatBase:
             )
         elif "Reference text:" in text:
             resp = _chat_response(text="ok", prompt_tokens=88, completion_tokens=2)
-        elif "veridrop stream check" in text:
+        elif "clodex stream check" in text:
             resp = _chat_response(
-                text="veridrop stream check",
+                text="clodex stream check",
                 prompt_tokens=10,
                 completion_tokens=5,
             )
@@ -174,9 +174,9 @@ class FakeChatBase:
 
     async def chat_completions_stream(self, **body: Any):
         text = _prompt_text(body)
-        if "veridrop stream check" in text:
+        if "clodex stream check" in text:
             chunks = _stream_chunks(
-                text="veridrop stream check",
+                text="clodex stream check",
                 prompt_tokens=10,
                 completion_tokens=5,
                 include_usage=bool(body.get("stream_options", {}).get("include_usage")),

@@ -48,4 +48,4 @@ Every streaming probe records per-chunk arrival timestamps (`StreamSample`). CLO
 - Self-hosting supported via Docker (`docker build -t clodex-check . && docker run -p 127.0.0.1:8088:8088 clodex-check`) and Python CLI (`relay-detector detect` / `relay-detector compare`).
 
 ## Credits & Licensing
-Licensed under **AGPL-3.0-or-later**. Built upon the open-source `canarybyte/veridrop` engine, inspired by Simon Willison's Pelican-on-a-bicycle SVG benchmark and open-source relay verification techniques from the community.
+Licensed under **AGPL-3.0-or-later**. Inspired by Simon Willison's Pelican-on-a-bicycle SVG benchmark and open-source AI API verification techniques from the community.

@@ -94,7 +94,7 @@ class FakeOpenAIBaseClient:
                 usage=usage,
             )
         elif "stream check" in prompt:
-            response = _chat_payload(model=model, content="veridrop stream check", usage=usage)
+            response = _chat_payload(model=model, content="clodex stream check", usage=usage)
         elif "HTTP status 418" in prompt:
             response = _chat_payload(
                 model=model,
@@ -112,7 +112,7 @@ class FakeOpenAIBaseClient:
             "object": "chat.completion.chunk",
             "created": 1741569952,
             "model": body["model"],
-            "choices": [{"index": 0, "delta": {"content": "veridrop "}}],
+            "choices": [{"index": 0, "delta": {"content": "clodex "}}],
         }, 5
         yield {
             "id": "chatcmpl-test",

@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-_JOBS_BASE = Path(os.environ.get("VERIDROP_JOBS_DIR", "/opt/veridrop/web_data/jobs"))
+_JOBS_BASE = Path(os.environ.get("CLODEX_CHECK_JOBS_DIR", "/opt/clodex-check/web_data/jobs"))
 
 REPORT_DIRS = [
     _JOBS_BASE / "anthropic",

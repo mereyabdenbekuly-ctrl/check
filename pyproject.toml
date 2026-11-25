@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "relay-detector"
 version = "0.2.0"
-description = "CLODEX Check · Open-source AI API relay authenticity and protocol detector (based on Veridrop)"
+description = "CLODEX Check · Open-source AI API authenticity, protocol, and streaming auditor"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-authors = [{ name = "CLODEX" }, { name = "Veridrop" }]
+authors = [{ name = "CLODEX" }]
 readme = "README.md"
 requires-python = ">=3.10"
 urls = { Homepage = "https://check.clodex.xyz", Repository = "https://github.com/mereyabdenbekuly-ctrl/check" }
@@ -37,7 +37,7 @@ web = [
 
 [project.scripts]
 relay-detector = "relay_detector.cli:app"
-veridrop = "relay_detector.cli:app"
+clodex-check = "relay_detector.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

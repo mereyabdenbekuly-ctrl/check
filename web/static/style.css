@@ -570,11 +570,11 @@ code {
 
 /* ───────── Why & How sections ───────── */
 
-.why-veridrop,
+.why-clodex,
 .how-it-works {
   margin-bottom: 52px;
 }
-.why-veridrop h2,
+.why-clodex h2,
 .how-it-works h2 {
   font-family: var(--font-display);
   font-size: clamp(22px, 2.8vw, 28px);

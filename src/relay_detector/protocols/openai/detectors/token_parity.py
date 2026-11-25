@@ -50,7 +50,7 @@ class TokenParityDetector(ActiveDetector):
 
 def _load_baseline_usage(model: str, mode: Mode | None) -> dict[str, int] | None:
     candidates: list[Path] = []
-    explicit = os.environ.get("VERIDROP_OPENAI_BASELINE_PATH")
+    explicit = os.environ.get("CLODEX_OPENAI_BASELINE_PATH")
     if explicit:
         candidates.append(Path(explicit))
     suffixes = [

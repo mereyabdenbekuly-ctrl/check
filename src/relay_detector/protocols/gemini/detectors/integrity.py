@@ -19,7 +19,7 @@ from .base import ActiveDetector
 from .utils import finish_reason, message_text
 
 
-PROMPT = "Reply with exactly: veridrop stream check"
+PROMPT = "Reply with exactly: clodex stream check"
 
 
 class IntegrityDetector(ActiveDetector):

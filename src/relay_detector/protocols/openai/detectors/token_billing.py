@@ -502,7 +502,7 @@ def _range(values) -> dict[str, Any]:
 
 
 def _reference_path() -> Path:
-    configured = os.environ.get("VERIDROP_OPENAI_TOKEN_REFERENCE_PATH")
+    configured = os.environ.get("CLODEX_OPENAI_TOKEN_REFERENCE_PATH")
     if configured:
         return Path(configured)
     return Path("web_data/openai_token_reference.json")
@@ -537,7 +537,7 @@ def _openai_api_key() -> str | None:
     key = os.environ.get("OPENAI_API_KEY")
     if key:
         return key
-    for path in (Path.cwd() / ".env", Path("/opt/veridrop/.env")):
+    for path in (Path.cwd() / ".env", Path("/opt/clodex-check/.env")):
         try:
             for line in path.read_text(encoding="utf-8").splitlines():
                 line = line.strip()

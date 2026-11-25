@@ -39,10 +39,10 @@ from relay_detector.scorer import (
 
 JobStatus = Literal["queued", "running", "done", "error"]
 
-# Production default; override via VERIDROP_JOBS_DIR in tests / dev so the
-# import doesn't try to mkdir into /opt/veridrop on a developer laptop.
+# Production default; override via CLODEX_CHECK_JOBS_DIR in tests / dev so the
+# import doesn't try to mkdir into /opt/clodex-check on a developer laptop.
 JOBS_DIR = Path(
-    os.environ.get("VERIDROP_JOBS_DIR", "/opt/veridrop/web_data/jobs")
+    os.environ.get("CLODEX_CHECK_JOBS_DIR", "/opt/clodex-check/web_data/jobs")
 )
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -202,7 +202,7 @@ def _summarize_detector_result(
 _JOBS: dict[str, Job] = {}
 _LOCK = asyncio.Lock()
 _CURRENT_ON_EVENT: contextvars.ContextVar[Callable[[dict[str, Any]], None] | None] = (
-    contextvars.ContextVar("veridrop_on_event", default=None)
+    contextvars.ContextVar("clodex_check_on_event", default=None)
 )
 
 

@@ -317,7 +317,7 @@
       try {
         await navigator.clipboard.writeText(location.href);
         const orig = copyBtn.textContent;
-        copyBtn.textContent = (window.__veridropI18n && window.__veridropI18n.copied) || 'Copied!';
+        copyBtn.textContent = (window.__clodexCheckI18n && window.__clodexCheckI18n.copied) || 'Copied!';
         setTimeout(function () { copyBtn.textContent = orig; }, 1600);
       } catch (e) {}
     });

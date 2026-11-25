@@ -8,7 +8,7 @@ from ....core.models import DetectorResult
 from .base import ActiveDetector
 
 
-PROMPT = "Reply with exactly: veridrop stream check"
+PROMPT = "Reply with exactly: clodex stream check"
 
 
 class IntegrityDetector(ActiveDetector):

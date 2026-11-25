@@ -98,7 +98,7 @@ git clone https://github.com/mereyabdenbekuly-ctrl/check.git
 cd check
 python3 -m venv .venv
 ./.venv/bin/pip install -e ".[dev,web]"
-VERIDROP_JOBS_DIR=./data/jobs ./.venv/bin/uvicorn web.server:app --host 127.0.0.1 --port 8088
+CLODEX_CHECK_JOBS_DIR=./data/jobs ./.venv/bin/uvicorn web.server:app --host 127.0.0.1 --port 8088
 ```
 
 ### 3. CLI
@@ -183,11 +183,10 @@ VERIDROP_JOBS_DIR=./data/jobs ./.venv/bin/uvicorn web.server:app --host 127.0.0.
 
 ## Благодарности и открытые источники / Acknowledgments
 
-CLODEX Check создан в духе открытого ПО с уважением к авторам и лицензиям:
+CLODEX Check создан в духе открытого ПО с уважением к open-source сообществу:
 
-- **Базовый движок (AGPL-3.0):** основан на [canarybyte/veridrop](https://github.com/canarybyte/veridrop) (`relay_detector`), с сохранением лицензии **AGPL-3.0-or-later**.
 - **Пеликан на велосипеде (SVG):** вдохновлён визуальным бенчмарком Симона Уиллисона ([simonw/pelican-bicycle](https://simonwillison.net/tags/pelican-riding-a-bicycle/)).
-- **Методологические идеи open-source сообщества:** техники аудита Prompt Caching, скрытых system-инъекций, краевых случаев токенизатора, динамических анти-кэш задач, PNG vision и детекции буферизованных стримов переосмыслены и реализованы с нуля под архитектуру CLODEX Check с опорой на исследования открытых проектов сообщества (`TokenScanAI/tokenapi-scan`, `BingZi-233/check-cx`, `mintesnot-teshome/llm-verify`, `toby-bridges/api-relay-audit`).
+- **Методологические идеи open-source сообщества:** техники аудита Prompt Caching, скрытых system-инъекций, краевых случаев токенизатора, динамических анти-кэш задач, PNG vision и детекции буферизованных стримов реализованы под архитектуру CLODEX Check с опорой на открытые исследования сообщества (`TokenScanAI/tokenapi-scan`, `BingZi-233/check-cx`, `mintesnot-teshome/llm-verify`, `toby-bridges/api-relay-audit`).
 
 ---
 
