@@ -380,7 +380,7 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
 
     # ------- right: detector rows -------
     rows_x = 610
-    rows_top = 148
+    rows_top = 132
     rows_w = W - rows_x - 60
 
     by_name: dict[str, dict[str, Any]] = {
@@ -393,12 +393,13 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
         for name, label in detector_display(loc, protocol)
         if name != "long_context" or (by_name.get("long_context") or {}).get("status") != "skip"
     ]
-    row_h = min(54, max(38, int(630 / max(1, len(labels)))))
+    row_h = min(54, max(35, int(650 / max(1, len(labels)))))
+    ultra_compact = len(labels) >= 15
     compact = len(labels) >= 13
-    label_font = _load_font(17 if compact else 19, bold=False, locale=loc)
-    status_font = _load_font(16 if compact else 18, bold=True, locale=loc)
-    icon_r = 11 if compact else 13
-    text_y_off = 10 if compact else 12
+    label_font = _load_font(15 if ultra_compact else (17 if compact else 19), bold=False, locale=loc)
+    status_font = _load_font(14 if ultra_compact else (16 if compact else 18), bold=True, locale=loc)
+    icon_r = 9 if ultra_compact else (11 if compact else 13)
+    text_y_off = 9 if ultra_compact else (10 if compact else 12)
 
     for i, (name, label) in enumerate(labels):
         ry = rows_top + i * row_h

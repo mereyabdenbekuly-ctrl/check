@@ -2,6 +2,7 @@
 
 from .base import ActiveDetector, BaseDetector, PassiveDetector
 from .basic_request import BasicRequestDetector
+from .dynamic_challenge import DynamicChallengeDetector
 from .function_calling import FunctionCallingDetector
 from .integrity import IntegrityDetector
 from .model_info import ModelInfoDetector
@@ -11,6 +12,7 @@ from .structured_output import StructuredOutputDetector
 from .system_injection import SystemInjectionDetector
 from .token_usage import TokenUsageDetector
 from .tokenizer_probe import TokenizerProbeDetector
+from .vision_image import VisionImageDetector
 
 
 def build_all() -> list[BaseDetector]:
@@ -24,6 +26,8 @@ def build_all() -> list[BaseDetector]:
         TokenUsageDetector(),
         TokenizerProbeDetector(),
         SystemInjectionDetector(),
+        VisionImageDetector(),
+        DynamicChallengeDetector(),
         PelicanSVGDetector(),
     ]
 
@@ -41,6 +45,8 @@ __all__ = [
     "TokenUsageDetector",
     "TokenizerProbeDetector",
     "SystemInjectionDetector",
+    "VisionImageDetector",
+    "DynamicChallengeDetector",
     "PelicanSVGDetector",
     "build_all",
 ]

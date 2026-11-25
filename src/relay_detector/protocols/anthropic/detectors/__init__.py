@@ -8,6 +8,7 @@ absent — the Runner tolerates a mode set that references missing names.
 from .base import ActiveDetector, BaseDetector, PassiveDetector
 from .behavioral_signature import BehavioralSignatureDetector
 from .consistency import ConsistencyDetector
+from .dynamic_challenge import DynamicChallengeDetector
 from .identity import IdentityDetector
 from .integrity import IntegrityDetector
 from .knowledge import KnowledgeDetector
@@ -21,6 +22,7 @@ from .structured_output import StructuredOutputDetector
 from .system_injection import SystemInjectionDetector
 from .thinking_signature import ThinkingSignatureDetector
 from .token_usage import TokenUsageDetector
+from .vision_image import VisionImageDetector
 
 
 def build_all() -> list[BaseDetector]:
@@ -39,6 +41,8 @@ def build_all() -> list[BaseDetector]:
         MessageIDDetector(),
         PromptCacheDetector(),
         SystemInjectionDetector(),
+        VisionImageDetector(),
+        DynamicChallengeDetector(),
         PelicanSVGDetector(),
         LongContextDetector(),
     ]
@@ -61,6 +65,8 @@ __all__ = [
     "MessageIDDetector",
     "PromptCacheDetector",
     "SystemInjectionDetector",
+    "VisionImageDetector",
+    "DynamicChallengeDetector",
     "PelicanSVGDetector",
     "LongContextDetector",
     "build_all",

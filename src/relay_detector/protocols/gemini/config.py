@@ -19,6 +19,8 @@ DETECTOR_WEIGHTS: dict[str, float] = {
     "token_usage": 10.0,
     "tokenizer_probe": 10.0,
     "system_injection": 6.0,
+    "vision_image": 7.0,
+    "dynamic_challenge": 6.0,
     "pelican_svg": 8.0,
 }
 

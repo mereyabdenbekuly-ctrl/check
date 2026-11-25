@@ -15,9 +15,9 @@
   <p class="hero-sub answer-capsule">
     <strong>CLODEX Check</strong>
     {{ lt(locale,
-      'проверяет эндпоинт через серверную подпись Anthropic (thinking signature) и 11 дополнительных детекторов. Без регистрации, API-ключ не сохраняется.',
-      'audits Claude endpoints via Anthropic server-side thinking signatures and 11 additional detectors. Free, no signup, keys never persisted.',
-      '通过 Anthropic 服务端 thinking signature 与 11 项协议/行为检测器验证 Claude 接口真伪。免费、无需注册、key 不落盘。') }}
+      'проверяет эндпоинт через серверную подпись Anthropic (thinking signature) и 16 дополнительных детекторов: Prompt Caching, system-инъекции, зрение PNG, анти-кэш логику и Пеликан SVG. Без регистрации, API-ключ не сохраняется.',
+      'audits Claude endpoints via Anthropic server-side thinking signatures and 16 additional detectors: Prompt Caching, system-prompt audit, dynamic PNG vision, anti-cache reasoning, and Pelican SVG. Free, no signup, keys never persisted.',
+      '通过 Anthropic 服务端 thinking signature 与 16 项检测器验证 Claude 接口真伪（含缓存、系统提示词审计、动态视觉 PNG、防缓存推理与鹈鹕 SVG）。免费、无需注册、key 不落盘。') }}
   </p>
 </section>
 
@@ -61,7 +61,7 @@
         <select id="mode" name="mode">
           <option value="quick">{{ lt(locale, 'Быстрая (~15 сек, 5 проверок)', 'Quick (~15s, 5 checks)', '快速 (~15 秒, 5 项)') }}</option>
           <option value="standard">{{ lt(locale, 'Стандарт (~45 сек, 9 проверок)', 'Standard (~45s, 9 checks)', '标准 (~45 秒, 9 项)') }}</option>
-          <option value="full" selected>{{ lt(locale, 'Полная (~75 сек, все проверки)', 'Full (~75s, all checks)', '完整 (~75 秒, 全部检测)') }}</option>
+          <option value="full" selected>{{ lt(locale, 'Полная (~80 сек, все 16 проверок + Пеликан SVG)', 'Full (~80s, all 16 checks + Pelican SVG)', '完整 (~80 秒, 全部 16 项 + 鹈鹕 SVG)') }}</option>
         </select>
       </div>
     </div>

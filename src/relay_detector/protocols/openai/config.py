@@ -16,6 +16,8 @@ DETECTOR_WEIGHTS: dict[str, float] = {
     "tokenizer_probe": 10.0,
     "prompt_cache": 8.0,
     "system_injection": 6.0,
+    "vision_image": 7.0,
+    "dynamic_challenge": 6.0,
     "pelican_svg": 8.0,
     # Heavier weight than other detectors because context-window fraud is
     # one of the highest-impact lies a relay can tell. Skipped (0 effective

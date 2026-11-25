@@ -171,6 +171,225 @@ async def gemini_index(request: Request) -> HTMLResponse:
     return _render(request, "gemini.html", models=_gemini_model_choices())
 
 
+_JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,40}$")
+
+
+def _extract_job_id(raw: str | None) -> str:
+    """Normalize a pasted job ID or full /r/{id} URL into a safe job ID."""
+    val = (raw or "").strip()
+    if not val:
+        return ""
+    val = val.split("#", 1)[0].split("?", 1)[0].strip().rstrip("/")
+    if "/r/" in val:
+        val = val.split("/r/", 1)[1]
+        val = val.split("/", 1)[0]
+    for suffix in (".jpg", ".json", ".svg"):
+        if val.endswith(suffix):
+            val = val[: -len(suffix)]
+    val = val.strip()
+    return val if _JOB_ID_RE.match(val) else ""
+
+
+def _domain_from_url(base_url: str, fallback: str) -> str:
+    if not base_url:
+        return fallback
+    if "://" in base_url:
+        return base_url.split("://", 1)[1].split("/", 1)[0] or fallback
+    return base_url.split("/", 1)[0] or fallback
+
+
+def _verdict_css_class(score: float, verdict: str) -> str:
+    if verdict == "passed" and score >= 85:
+        return "ok"
+    if verdict == "passed":
+        return "ok-dim"
+    if verdict == "marginal":
+        return "warn"
+    return "fail"
+
+
+def _compare_summary(job_id: str, report: dict, locale: str) -> dict:
+    protocol = str(report.get("protocol") or "anthropic")
+    score = float(report.get("total_score") or 0.0)
+    verdict = str(report.get("verdict") or "failed")
+    perf = report.get("performance") or {}
+    usage = perf.get("usage") or {}
+    sa = perf.get("stream_analysis") if isinstance(perf.get("stream_analysis"), dict) else {}
+    tps = perf.get("tokens_per_second")
+    if not isinstance(tps, (int, float)) or tps <= 0:
+        out_t = usage.get("output_tokens") or 0
+        lat = perf.get("total_latency_ms") or 0
+        tps = round(out_t * 1000.0 / lat, 1) if (out_t and lat) else None
+    else:
+        tps = round(float(tps), 1)
+    results = [r for r in (report.get("results") or []) if isinstance(r, dict)]
+    ran = [r for r in results if r.get("status") != "skip"]
+    passed = sum(1 for r in ran if r.get("status") == "pass")
+    failed = sum(1 for r in ran if r.get("status") in {"fail", "error"})
+    return {
+        "job_id": job_id,
+        "protocol": protocol,
+        "proto_label": _PROTOCOL_LABELS.get(protocol, protocol),
+        "base_url": str(report.get("base_url") or ""),
+        "domain": _domain_from_url(str(report.get("base_url") or ""), tr(locale, "relay_fallback")),
+        "target_model": str(report.get("target_model") or ""),
+        "mode": str(report.get("mode") or ""),
+        "score": score,
+        "verdict": verdict,
+        "verdict_class": _verdict_css_class(score, verdict),
+        "caption": result_caption(locale, score, verdict, protocol),
+        "ttft_ms": perf.get("ttft_ms"),
+        "total_latency_ms": perf.get("total_latency_ms") or 0,
+        "tokens_per_second": tps,
+        "stream_verdict": sa.get("verdict") or "",
+        "stream_chunks": sa.get("chunk_count") or 0,
+        "input_tokens": usage.get("input_tokens") or 0,
+        "output_tokens": usage.get("output_tokens") or 0,
+        "passed": passed,
+        "failed": failed,
+        "ran_total": len(ran),
+        "pelican": _pelican_preview(report),
+    }
+
+
+def _row_status_tuple(r: dict | None, name: str, locale: str) -> tuple[str, str, str, float | None, str]:
+    if not r:
+        return ("absent", "—", "muted", None, "")
+    status = str(r.get("status") or "skip")
+    score = float(r.get("score") or 0.0)
+    summary = jobs._summarize_detector_result(name, status, r.get("details"), r.get("error"))
+    if status == "pass":
+        return (status, status_short(locale, "pass", name), "ok", score, summary)
+    if status == "skip":
+        return (status, status_short(locale, "skip", name), "muted", None, summary)
+    if status == "error":
+        return (status, status_short(locale, "error", name), "fail", score, summary)
+    if score >= 70:
+        return (status, status_short(locale, "warn", name), "warn", score, summary)
+    return (status, status_short(locale, "fail", name), "fail", score, summary)
+
+
+def _compare_rows(report_a: dict, report_b: dict, locale: str) -> list[dict]:
+    proto_a = str(report_a.get("protocol") or "anthropic")
+    proto_b = str(report_b.get("protocol") or "anthropic")
+    by_a = {r.get("name"): r for r in (report_a.get("results") or []) if isinstance(r, dict)}
+    by_b = {r.get("name"): r for r in (report_b.get("results") or []) if isinstance(r, dict)}
+
+    labels: dict[str, str] = {}
+    order: list[str] = []
+    for proto in (proto_a, proto_b):
+        for name, label in detector_display(locale, proto):
+            if name not in labels:
+                labels[name] = label
+                order.append(name)
+    for name in list(by_a.keys()) + list(by_b.keys()):
+        if isinstance(name, str) and name not in labels:
+            labels[name] = name
+            order.append(name)
+
+    rows: list[dict] = []
+    for name in order:
+        ra = by_a.get(name)
+        rb = by_b.get(name)
+        if name == "long_context":
+            sa_st = (ra or {}).get("status", "skip")
+            sb_st = (rb or {}).get("status", "skip")
+            if sa_st == "skip" and sb_st == "skip":
+                continue
+        if ra is None and rb is None:
+            continue
+        a_st, a_short, a_css, a_score, a_sum = _row_status_tuple(ra, name, locale)
+        b_st, b_short, b_css, b_score, b_sum = _row_status_tuple(rb, name, locale)
+        winner = "na"
+        delta: float | None = None
+        if a_score is not None and b_score is not None:
+            delta = round(b_score - a_score, 1)
+            if abs(delta) < 0.5:
+                winner = "tie"
+            elif delta > 0:
+                winner = "b"
+            else:
+                winner = "a"
+        rows.append({
+            "name": name,
+            "label": labels[name],
+            "a_status": a_st,
+            "a_short": a_short,
+            "a_css": a_css,
+            "a_score": a_score,
+            "a_summary": a_sum,
+            "b_status": b_st,
+            "b_short": b_short,
+            "b_css": b_css,
+            "b_score": b_score,
+            "b_summary": b_sum,
+            "delta": delta,
+            "winner": winner,
+        })
+    return rows
+
+
+@app.get("/compare", response_class=HTMLResponse)
+async def compare_page(request: Request, a: str = "", b: str = "") -> HTMLResponse:
+    locale = detect_locale(request)
+    raw_a = a.strip()
+    raw_b = b.strip()
+    id_a = _extract_job_id(raw_a)
+    id_b = _extract_job_id(raw_b)
+
+    errors: list[str] = []
+    job_a = await jobs.get(id_a) if id_a else None
+    job_b = await jobs.get(id_b) if id_b else None
+
+    if raw_a and (not id_a or job_a is None or job_a.status != "done" or job_a.report is None):
+        errors.append(
+            lt(
+                locale,
+                f"Отчёт A («{raw_a[:48]}») не найден или ещё не завершён.",
+                f"Report A ('{raw_a[:48]}') was not found or is still running.",
+                f"未找到报告 A（{raw_a[:48]}），或该检测尚未完成。",
+            )
+        )
+    if raw_b and (not id_b or job_b is None or job_b.status != "done" or job_b.report is None):
+        errors.append(
+            lt(
+                locale,
+                f"Отчёт B («{raw_b[:48]}») не найден или ещё не завершён.",
+                f"Report B ('{raw_b[:48]}') was not found or is still running.",
+                f"未找到报告 B（{raw_b[:48]}），或该检测尚未完成。",
+            )
+        )
+
+    summary_a = None
+    summary_b = None
+    diff_rows: list[dict] = []
+    score_delta: float | None = None
+    if (
+        job_a is not None
+        and job_b is not None
+        and job_a.status == "done"
+        and job_b.status == "done"
+        and job_a.report is not None
+        and job_b.report is not None
+    ):
+        summary_a = _compare_summary(id_a, job_a.report, locale)
+        summary_b = _compare_summary(id_b, job_b.report, locale)
+        diff_rows = _compare_rows(job_a.report, job_b.report, locale)
+        score_delta = round(summary_b["score"] - summary_a["score"], 1)
+
+    return _render(
+        request,
+        "compare.html",
+        raw_a=id_a or raw_a,
+        raw_b=id_b or raw_b,
+        errors=errors,
+        summary_a=summary_a,
+        summary_b=summary_b,
+        diff_rows=diff_rows,
+        score_delta=score_delta,
+    )
+
+
 @app.get("/faq", response_class=HTMLResponse)
 async def faq_index(request: Request) -> HTMLResponse:
     """Standalone FAQ page — single source of truth in faq_data.py drives
@@ -523,7 +742,7 @@ async def result_jpg(request: Request, job_id: str) -> Response:
 
     locale = detect_locale(request)
     base_cache = jobs.image_path(job_id, j.protocol)
-    cache_path = base_cache.with_name(f"{job_id}.{locale}.v4.jpg")
+    cache_path = base_cache.with_name(f"{job_id}.{locale}.v5.jpg")
     if not cache_path.exists():
         jpg_bytes = render_report_jpg(j.report, locale=locale)
         cache_path.write_bytes(jpg_bytes)
@@ -729,6 +948,7 @@ _STATIC_SITEMAP_URLS = [
     ("https://check.clodex.xyz/claude",      "weekly",  "0.9",  "index.html"),
     ("https://check.clodex.xyz/openai",      "weekly",  "0.9",  "openai.html"),
     ("https://check.clodex.xyz/gemini",      "weekly",  "0.9",  "gemini.html"),
+    ("https://check.clodex.xyz/compare",     "weekly",  "0.8",  "compare.html"),
     ("https://check.clodex.xyz/faq",         "monthly", "0.8",  "faq.html"),
 ]
 
@@ -958,6 +1178,31 @@ def _common_report_notes(report: dict, locale: str = "ru") -> list[dict[str, str
                 f"Потоковый ответ пришёл почти мгновенным рывком ({sa.get('chunk_count')} чанков за {sa.get('generation_ms')} мс после долгого ожидания первого токена). Вероятно, провайдер буферизует весь ответ целиком вместо настоящего потокового стриминга.",
                 f"The streamed response arrived in a single burst ({sa.get('chunk_count')} chunks in {sa.get('generation_ms')}ms after waiting for first token), suggesting the proxy buffers the full response instead of true streaming.",
                 f"流式输出在长时间等待首 token 后几乎一次性吐出（{sa.get('chunk_count')} 个分片，耗时 {sa.get('generation_ms')}ms），代理可能缓冲了完整响应而非真流式传输。",
+            ),
+        })
+
+    vi = results.get("vision_image") or {}
+    if vi and vi.get("status") in {"fail", "error"}:
+        vd = vi.get("details") if isinstance(vi.get("details"), dict) else {}
+        notes.append({
+            "title": lt(locale, "Модель не прошла проверку зрения (динамический PNG)", "Dynamic PNG vision check failed", "动态 PNG 图像视觉检测未通过"),
+            "body": lt(
+                locale,
+                f"Эндпоинт не смог прочитать одноразовый код {vd.get('expected_code', 'VRF-XXXX')} со сгенерированного PNG-изображения. Возможна потеря image-блоков на стороне релея или подмена на текстовую модель без мультимодальности.",
+                f"The endpoint failed to read the one-time code {vd.get('expected_code', 'VRF-XXXX')} from a dynamically rendered PNG. The relay may strip image inputs or substitute a text-only model.",
+                f"接口未能识别动态渲染 PNG 中的随机验证码 {vd.get('expected_code', 'VRF-XXXX')}，代理可能丢弃了图片块或底层替换为不支持视觉的纯文本模型。",
+            ),
+        })
+
+    dc = results.get("dynamic_challenge") or {}
+    if dc and dc.get("status") in {"fail", "error"}:
+        notes.append({
+            "title": lt(locale, "Сбой в одноразовой анти-кэш задаче", "Dynamic anti-cache challenge failed", "动态防缓存推理未通过"),
+            "body": lt(
+                locale,
+                "Модель ошиблась в простой случайной задаче на арифметику + посимвольный разворот слова в JSON. Это частый признак подмены на слабую модель или некорректной обработки промпта.",
+                "The model missed a fresh randomized arithmetic + character-reversal JSON challenge — a common sign of downgrade to a weaker model or prompt corruption.",
+                "模型未能完成随机生成的算术与逐字反转 JSON 题目，通常暗示底层被降级为弱模型或请求内容被异常修改。",
             ),
         })
 

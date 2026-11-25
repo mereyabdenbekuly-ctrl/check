@@ -26,6 +26,8 @@ DETECTOR_WEIGHTS: dict[str, float] = {
     "message_id": 5.0,
     "prompt_cache": 8.0,
     "system_injection": 6.0,
+    "vision_image": 7.0,
+    "dynamic_challenge": 6.0,
     "pelican_svg": 8.0,
     # Heavy weight when it runs (context-window fraud is among the worst
     # lies). Skipped (0 effective weight) when ExecutionConfig.include_long_context

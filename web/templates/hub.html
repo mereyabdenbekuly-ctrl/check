@@ -50,9 +50,10 @@
   </p>
   <div class="hub-pills">
     <span class="hub-pill">{{ lt(locale, '3 протокола', '3 protocols', '3 个协议') }}</span>
-    <span class="hub-pill">{{ lt(locale, 'до 15 проверок', 'up to 15 checks', '最多 15 项检测') }}</span>
+    <span class="hub-pill">{{ lt(locale, 'до 17 проверок', 'up to 17 checks', '最多 17 项检测') }}</span>
     <span class="hub-pill">{{ lt(locale, 'Пеликан-тест (SVG)', 'Pelican SVG test', '鹈鹕骑车 SVG') }}</span>
-    <span class="hub-pill">{{ lt(locale, 'Prompt Caching + токен-аудит', 'Prompt Caching + token audit', '缓存 + 分词器审计') }}</span>
+    <span class="hub-pill">{{ lt(locale, 'Зрение PNG + Анти-кэш', 'Dynamic Vision + Anti-cache', '动态视觉 + 防缓存推理') }}</span>
+    <span class="hub-pill">{{ lt(locale, 'Сравнение A vs B', 'Side-by-side Compare', '并排对比 A vs B') }}</span>
     <span class="hub-pill">{{ lt(locale, 'API-ключ не сохраняется', 'keys never persisted', 'API key 永不落盘') }}</span>
   </div>
 </section>
@@ -64,8 +65,8 @@
       <span class="tier-badge tier-crypto">{{ lt(locale, 'Криптоподпись', 'Cryptographic', '加密级') }}</span>
     </div>
     <h2>{{ lt(locale, 'Проверка Claude API', 'Claude API Check', 'Claude API 检测') }}</h2>
-    <p>{{ lt(locale, 'Opus 5.5 / 4.8, Sonnet 5.5 / 4.6, Haiku 5.5 / 4.5. Проверяет thinking signature, Prompt Caching, system-инъекции, пеликан SVG, tool use, PDF, stream tok/s и usage.', 'Opus 5.5 / 4.8, Sonnet 5.5 / 4.6, Haiku 5.5 / 4.5. Checks thinking signature, Prompt Caching, system-prompt audit, Pelican SVG, tool use, PDF, live tok/s, and usage.', '支持 Opus 5.5 / 4.8、Sonnet 5.5 / 4.6、Haiku 5.5 / 4.5。检测 thinking signature、提示词缓存、系统提示词审计、鹈鹕 SVG、tool use、PDF、真实流式 tok/s 与 usage。') }}</p>
-    <div class="protocol-meta-line">{{ lt(locale, '15 детекторов · /v1/messages', '15 detectors · /v1/messages', '15 项检测器 · /v1/messages') }}</div>
+    <p>{{ lt(locale, 'Opus 5.5 / 4.8, Sonnet 5.5 / 4.6, Haiku 5.5 / 4.5. Проверяет thinking signature, Prompt Caching, system-инъекции, зрение PNG, анти-кэш, пеликан SVG, tool use, PDF и stream tok/s.', 'Opus 5.5 / 4.8, Sonnet 5.5 / 4.6, Haiku 5.5 / 4.5. Checks thinking signature, Prompt Caching, system-prompt audit, dynamic PNG vision, anti-cache, Pelican SVG, tool use, PDF, and live tok/s.', '支持 Opus 5.5 / 4.8、Sonnet 5.5 / 4.6、Haiku 5.5 / 4.5。检测 thinking signature、提示词缓存、系统提示词审计、动态视觉 PNG、防缓存推理、鹈鹕 SVG、tool use、PDF 与真实流式 tok/s。') }}</p>
+    <div class="protocol-meta-line">{{ lt(locale, '17 детекторов · /v1/messages', '17 detectors · /v1/messages', '17 项检测器 · /v1/messages') }}</div>
     <a class="btn btn-primary protocol-action" href="{{ with_lang('/claude', locale) }}">{{ lt(locale, 'Проверить Claude →', 'Check Claude →', '检测 Claude →') }}</a>
   </article>
 
@@ -75,8 +76,8 @@
       <span class="tier-badge tier-behavioral">{{ lt(locale, 'Протокол + поведение', 'Protocol + behavior', '行为/协议级') }}</span>
     </div>
     <h2>{{ lt(locale, 'Проверка OpenAI / GPT API', 'OpenAI / GPT API Check', 'OpenAI / GPT 检测') }}</h2>
-    <p>{{ lt(locale, 'GPT-6.2 / 6.1 / 6 / 5.6 / 5.5 / 5.4. Проба токенизатора o200k_base, Prompt Caching, аудит system-инъекций, пеликан SVG, strict JSON, stream tok/s и следы подмены.', 'GPT-6.2 / 6.1 / 6 / 5.6 / 5.5 / 5.4. Audits o200k_base tokenizer, Prompt Caching, system-prompt integrity, Pelican SVG, strict JSON, live tok/s, and rewrapping traces.', '支持 GPT-6.2 / 6.1 / 6 / 5.6 / 5.5 / 5.4。检测 o200k_base 分词器、提示词缓存、系统提示词审计、鹈鹕 SVG、strict JSON、真实流式速度及套壳痕迹。') }}</p>
-    <div class="protocol-meta-line">{{ lt(locale, '12 детекторов · /v1/chat/completions', '12 detectors · /v1/chat/completions', '12 项检测器 · /v1/chat/completions') }}</div>
+    <p>{{ lt(locale, 'GPT-6.2 / 6.1 / 6 / 5.6 / 5.5 / 5.4. Проба токенизатора o200k_base, Prompt Caching, зрение PNG, анти-кэш, system-инъекции, пеликан SVG, strict JSON и stream tok/s.', 'GPT-6.2 / 6.1 / 6 / 5.6 / 5.5 / 5.4. Audits o200k_base tokenizer, Prompt Caching, dynamic PNG vision, anti-cache reasoning, system-prompt integrity, Pelican SVG, strict JSON, and live tok/s.', '支持 GPT-6.2 / 6.1 / 6 / 5.6 / 5.5 / 5.4。检测 o200k_base 分词器、提示词缓存、动态视觉 PNG、防缓存推理、系统提示词审计、鹈鹕 SVG、strict JSON 与真实流式速度。') }}</p>
+    <div class="protocol-meta-line">{{ lt(locale, '14 детекторов · /v1/chat/completions', '14 detectors · /v1/chat/completions', '14 项检测器 · /v1/chat/completions') }}</div>
     <a class="btn btn-secondary protocol-action" href="{{ with_lang('/openai', locale) }}">{{ lt(locale, 'Проверить OpenAI →', 'Check OpenAI →', '检测 OpenAI →') }}</a>
   </article>
 
@@ -86,8 +87,8 @@
       <span class="tier-badge tier-protocol">{{ lt(locale, 'Протокольный уровень', 'Protocol level', '协议级') }}</span>
     </div>
     <h2>{{ lt(locale, 'Проверка Gemini API', 'Gemini API Check', 'Gemini API 检测') }}</h2>
-    <p>{{ lt(locale, 'Gemini 4 / 3.8 / 3 / 2.5 через OpenAI-совместимый эндпоинт: проба токенизатора, аудит system-инъекций, пеликан SVG, function calling, JSON Schema и stream tok/s.', 'Gemini 4 / 3.8 / 3 / 2.5 over the OpenAI-compatible path: tokenizer probe, system-prompt audit, Pelican SVG, function calling, JSON Schema, and live tok/s.', '支持 Gemini 4 / 3.8 / 3 / 2.5（OpenAI 兼容路径）：分词器探针、系统提示词审计、鹈鹕 SVG、function calling、JSON Schema 与真实流式速度。') }}</p>
-    <div class="protocol-meta-line">{{ lt(locale, '10 детекторов · /chat/completions', '10 detectors · /chat/completions', '10 项检测器 · /chat/completions') }}</div>
+    <p>{{ lt(locale, 'Gemini 4 / 3.8 / 3 / 2.5 через OpenAI-совместимый эндпоинт: токенизатор, зрение PNG, анти-кэш, system-инъекции, пеликан SVG, function calling, JSON Schema и stream tok/s.', 'Gemini 4 / 3.8 / 3 / 2.5 over the OpenAI-compatible path: tokenizer probe, dynamic PNG vision, anti-cache, system-prompt audit, Pelican SVG, function calling, JSON Schema, and live tok/s.', '支持 Gemini 4 / 3.8 / 3 / 2.5（OpenAI 兼容路径）：分词器探针、动态视觉 PNG、防缓存推理、系统提示词审计、鹈鹕 SVG、function calling、JSON Schema 与真实流式速度。') }}</p>
+    <div class="protocol-meta-line">{{ lt(locale, '12 детекторов · /chat/completions', '12 detectors · /chat/completions', '12 项检测器 · /chat/completions') }}</div>
     <a class="btn btn-secondary protocol-action" href="{{ with_lang('/gemini', locale) }}">{{ lt(locale, 'Проверить Gemini →', 'Check Gemini →', '检测 Gemini →') }}</a>
   </article>
 </section>

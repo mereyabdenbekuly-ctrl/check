@@ -184,6 +184,17 @@ def _summarize_detector_result(
         return f"{canary}, bare={bare} tok ({d.get('overhead_label', '?')})"
     elif name == "tokenizer_probe":
         return f"edge Δ={d.get('edge_delta')}, ws Δ={d.get('ws_delta')}"
+    elif name == "vision_image":
+        verdict = d.get("verdict")
+        if verdict == "exact_match":
+            return f"OCR exact ({d.get('expected_code', '')})"
+        if verdict == "digits_matched":
+            return f"digits matched ({d.get('expected_code', '')})"
+        return f"missed ({d.get('expected_code', '?')})"
+    elif name == "dynamic_challenge":
+        c_ok = "calc OK" if d.get("calc_ok") else "calc FAIL"
+        r_ok = "rev OK" if d.get("rev_ok") else "rev FAIL"
+        return f"{c_ok}, {r_ok}"
     return ""
 
 

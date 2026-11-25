@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v5" />
+  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v6" />
   {% block head_extra %}{% endblock %}
   <script>
     window.__veridropUi = {{ ui | tojson }};
@@ -93,6 +93,7 @@
           <a href="{{ with_lang('/claude', locale) }}" class="{% if cur_path.startswith('/claude') %}is-active{% endif %}">{{ ui.nav_claude }}</a>
           <a href="{{ with_lang('/openai', locale) }}" class="{% if cur_path.startswith('/openai') %}is-active{% endif %}">{{ ui.nav_openai }}</a>
           <a href="{{ with_lang('/gemini', locale) }}" class="{% if cur_path.startswith('/gemini') %}is-active{% endif %}">{{ ui.nav_gemini }}</a>
+          <a href="{{ with_lang('/compare', locale) }}" class="{% if cur_path.startswith('/compare') %}is-active{% endif %}">{{ ui.nav_compare }}</a>
           <a href="{{ with_lang('/faq', locale) }}" class="{% if cur_path.startswith('/faq') %}is-active{% endif %}">{{ ui.nav_faq }}</a>
         </div>
         <div class="nav-actions">
@@ -148,6 +149,7 @@
           <li><a href="{{ with_lang('/claude', locale) }}">{{ ui.nav_claude }}</a></li>
           <li><a href="{{ with_lang('/openai', locale) }}">{{ ui.nav_openai }}</a></li>
           <li><a href="{{ with_lang('/gemini', locale) }}">{{ ui.nav_gemini }}</a></li>
+          <li><a href="{{ with_lang('/compare', locale) }}">{{ ui.nav_compare }}</a></li>
           <li><a href="{{ with_lang('/faq', locale) }}">{{ ui.footer_faq }}</a></li>
         </ul>
       </div>

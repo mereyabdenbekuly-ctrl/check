@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lt(locale, 'Сравнение отчётов AI API (Side-by-Side) · CLODEX Check', 'Compare AI API Reports (Side-by-Side) · CLODEX Check', 'AI API 检测报告对比 · CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, 'Сравните два AI API-провайдера или две модели бок о бок: итоговый скор, TTFT, реальная скорость tok/s, матрица до 17 детекторов и два Пеликана SVG рядом.', 'Compare two AI API providers or models side by side: total score, TTFT, live streaming tok/s, up to 17 detector diffs, and side-by-side Pelican SVGs.', '并排对比两个 AI API 中转站或模型：总分、首字延迟 TTFT、真实流式 tok/s、多达 17 项检测差异及两张鹈鹕骑车 SVG 对比。') }}{% endblock %}
+{% block canonical %}https://check.clodex.xyz/compare{% endblock %}
+{% block og_url %}https://check.clodex.xyz/compare{% endblock %}
+
+{% block content %}
+<section class="hero compare-hero">
+  <div class="eyebrow eyebrow-success">
+    <span class="eyebrow-dot" aria-hidden="true"></span>
+    <span>{{ lt(locale, 'SIDE-BY-SIDE · СРАВНЕНИЕ ПРОВАЙДЕРОВ И МОДЕЛЕЙ', 'SIDE-BY-SIDE · PROVIDER & MODEL DIFF', '并排对比 · 中转站与模型差异审计') }}</span>
+  </div>
+  <h1>{{ lt(locale, 'Сравнение двух отчётов', 'Side-by-Side Report Comparison', '双报告并排对比') }}</h1>
+  <p class="hero-sub answer-capsule">
+    {{ lt(locale,
+      'Вставьте ссылки или ID двух проверок CLODEX Check — например, стороннего провайдера и clodex.xyz. Увидите разницу по каждому детектору, скорости стрима и два Пеликана SVG рядом.',
+      'Paste two CLODEX Check report URLs or IDs — for example, another relay vs. clodex.xyz — to inspect detector-by-detector diffs, true streaming tok/s, and both Pelican SVGs side by side.',
+      '粘贴两份 CLODEX Check 报告链接或 ID（例如对比某中转站与 clodex.xyz），即可逐项查看检测差异、真实流式速度和两张鹈鹕骑车 SVG。') }}
+  </p>
+</section>
+
+<section class="card compare-form-card">
+  <form class="compare-form" method="get" action="/compare">
+    {% if locale != 'ru' %}
+    <input type="hidden" name="lang" value="{{ locale }}" />
+    {% endif %}
+    <div class="compare-form-grid">
+      <div class="field">
+        <label for="compare-a">{{ lt(locale, 'Отчёт A (ID или ссылка /r/...)', 'Report A (ID or /r/... URL)', '报告 A（ID 或 /r/... 链接）') }}</label>
+        <input
+          type="text"
+          id="compare-a"
+          name="a"
+          value="{{ raw_a }}"
+          placeholder="https://check.clodex.xyz/r/4VFI4sNK"
+          autocomplete="off"
+        />
+      </div>
+      <div class="compare-swap-wrap">
+        <button
+          type="button"
+          class="btn btn-secondary compare-swap-btn"
+          id="compare-swap-btn"
+          title="{{ lt(locale, 'Поменять A и B местами', 'Swap A and B', '交换 A 与 B') }}"
+          aria-label="{{ lt(locale, 'Поменять A и B местами', 'Swap A and B', '交换 A 与 B') }}"
+        >⇄</button>
+      </div>
+      <div class="field">
+        <label for="compare-b">{{ lt(locale, 'Отчёт B (ID или ссылка /r/...)', 'Report B (ID or /r/... URL)', '报告 B（ID 或 /r/... 链接）') }}</label>
+        <input
+          type="text"
+          id="compare-b"
+          name="b"
+          value="{{ raw_b }}"
+          placeholder="https://check.clodex.xyz/r/..."
+          autocomplete="off"
+        />
+      </div>
+    </div>
+    <div class="compare-form-actions">
+      <button type="submit" class="btn btn-primary">
+        {{ lt(locale, 'Сравнить отчёты', 'Compare reports', '开始对比') }}
+      </button>
+      {% if summary_a and summary_b %}
+      <button type="button" class="btn btn-secondary" id="copy-compare-btn">
+        {{ lt(locale, 'Скопировать ссылку на сравнение', 'Copy comparison link', '复制对比链接') }}
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+{% if errors %}
+<section class="card alert-card alert-danger compare-alert">
+  {% for err in errors %}
+  <p>{{ err }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if summary_a and summary_b %}
+<section class="compare-vs-grid">
+  {% for side, s in [('A', summary_a), ('B', summary_b)] %}
+  <article class="card compare-summary-card">
+    <div class="compare-card-top">
+      <span class="compare-side-tag">{{ lt(locale, 'Отчёт', 'Report', '报告') }} {{ side }}</span>
+      <span class="hub-pill">{{ s.proto_label }} · {{ s.mode }}</span>
+    </div>
+    <div class="compare-score-row">
+      <div class="score-ring score-ring-sm score-{{ s.verdict_class }}">
+        <div class="score-inner">
+          <div class="score-num">{{ '%.0f' | format(s.score) }}%</div>
+          <div class="score-caption">{{ s.caption }}</div>
+        </div>
+      </div>
+      <div class="compare-meta">
+        <h2>{{ s.domain }}</h2>
+        <div class="compare-model"><code>{{ s.target_model or '—' }}</code></div>
+        <div class="compare-counts">
+          <span class="is-ok">{{ s.passed }}/{{ s.ran_total }} OK</span>
+          {% if s.failed %}
+          · <span class="is-fail">{{ s.failed }} {{ lt(locale, 'ошибок', 'failed', '失败') }}</span>
+          {% endif %}
+        </div>
+        <a class="trust-link compare-open-link" href="{{ with_lang('/r/' ~ s.job_id, locale) }}">
+          {{ lt(locale, 'Открыть полный отчёт →', 'Open full report →', '查看完整报告 →') }}
+        </a>
+      </div>
+    </div>
+    <div class="compare-mini-metrics">
+      <div class="compare-mini-tile">
+        <span>TTFT</span>
+        <strong>{% if s.ttft_ms is not none %}{{ '{:,}'.format(s.ttft_ms) }}ms{% else %}—{% endif %}</strong>
+      </div>
+      <div class="compare-mini-tile">
+        <span>T/s</span>
+        <strong>{% if s.tokens_per_second %}{{ '%.1f' | format(s.tokens_per_second) }}{% else %}—{% endif %}</strong>
+      </div>
+      <div class="compare-mini-tile">
+        <span>{{ lt(locale, 'Стрим', 'Stream', '流式') }}</span>
+        <strong>
+          {% if s.stream_verdict == 'real_stream' %}{{ lt(locale, 'Реальный', 'True', '真流式') }}
+          {% elif s.stream_verdict == 'buffered_burst' %}{{ lt(locale, '⚠ Буфер', '⚠ Buffered', '⚠ 缓冲') }}
+          {% elif s.stream_verdict == 'short_stream' %}{{ lt(locale, 'Короткий', 'Short', '短流') }}
+          {% else %}—{% endif %}
+        </strong>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="card compare-verdict-banner">
+  <div>
+    <strong>{{ lt(locale, 'Итог сравнения:', 'Comparison delta:', '对比结论：') }}</strong>
+    {% if score_delta is not none and score_delta > 0.4 %}
+      {{ lt(locale,
+        'Отчёт B (' ~ summary_b.domain ~ ') набрал на +' ~ ('%.1f'|format(score_delta)) ~ ' баллов больше, чем A (' ~ summary_a.domain ~ ').',
+        'Report B (' ~ summary_b.domain ~ ') scored +' ~ ('%.1f'|format(score_delta)) ~ ' points higher than A (' ~ summary_a.domain ~ ').',
+        '报告 B（' ~ summary_b.domain ~ '）比报告 A（' ~ summary_a.domain ~ '）高出 +' ~ ('%.1f'|format(score_delta)) ~ ' 分。') }}
+    {% elif score_delta is not none and score_delta < -0.4 %}
+      {{ lt(locale,
+        'Отчёт A (' ~ summary_a.domain ~ ') набрал на +' ~ ('%.1f'|format(-score_delta)) ~ ' баллов больше, чем B (' ~ summary_b.domain ~ ').',
+        'Report A (' ~ summary_a.domain ~ ') scored +' ~ ('%.1f'|format(-score_delta)) ~ ' points higher than B (' ~ summary_b.domain ~ ').',
+        '报告 A（' ~ summary_a.domain ~ '）比报告 B（' ~ summary_b.domain ~ '）高出 +' ~ ('%.1f'|format(-score_delta)) ~ ' 分。') }}
+    {% else %}
+      {{ lt(locale,
+        'Оба отчёта показали одинаковый итоговый скор (' ~ ('%.0f'|format(summary_a.score)) ~ '%). Сравните TTFT, скорость T/s и детали детекторов ниже.',
+        'Both reports achieved the same overall score (' ~ ('%.0f'|format(summary_a.score)) ~ '%). Inspect TTFT, throughput, and per-detector details below.',
+        '两份报告总分相同（' ~ ('%.0f'|format(summary_a.score)) ~ '%），可继续对比下方首字延迟、流式速度与单项细节。') }}
+    {% endif %}
+  </div>
+</section>
+
+{% if summary_a.pelican or summary_b.pelican %}
+<section class="card compare-pelican-card">
+  <div class="pelican-head">
+    <div>
+      <span class="eyebrow eyebrow-success pelican-kicker">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>{{ lt(locale, 'ВИЗУАЛЬНОЕ СРАВНЕНИЕ · ПЕЛИКАН НА ВЕЛОСИПЕДЕ (SVG)', 'VISUAL DIFF · PELICAN ON A BICYCLE (SVG)', '视觉对比 · 鹈鹕骑自行车 (SVG)') }}</span>
+      </span>
+      <h2>{{ lt(locale, 'Два пеликана рядом (A vs B)', 'Side-by-Side Pelican SVGs (A vs B)', '两张鹈鹕骑车 SVG 并排对比（A vs B）') }}</h2>
+    </div>
+    <button type="button" class="btn btn-secondary" id="compare-pelican-bg-btn">
+      {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') }}
+    </button>
+  </div>
+  <div class="compare-pelican-grid">
+    {% for side, s in [('A', summary_a), ('B', summary_b)] %}
+    <div class="compare-pelican-col">
+      <div class="compare-pelican-label">
+        <span class="compare-side-tag">{{ side }}</span>
+        <strong>{{ s.domain }}</strong>
+        <code>{{ s.target_model }}</code>
+      </div>
+      {% if s.pelican and s.pelican.valid_svg %}
+      <div class="pelican-stage compare-pelican-stage">
+        <img
+          class="pelican-img"
+          src="data:image/svg+xml;base64,{{ s.pelican.svg_b64 }}"
+          alt="{{ side }} Pelican SVG"
+        />
+      </div>
+      <div class="pelican-stats">
+        <span class="hub-pill">{{ lt(locale, 'Оценка', 'Score', '评分') }}: <strong>{{ '%.0f' | format(s.pelican.score) }}/100</strong></span>
+        <span class="hub-pill">{{ lt(locale, 'Фигур', 'Shapes', '图元') }}: <strong>{{ s.pelican.primitive_count }}</strong></span>
+        <span class="hub-pill">{{ lt(locale, 'Цветов', 'Colors', '颜色') }}: <strong>{{ s.pelican.unique_colors }}</strong></span>
+        <a class="hub-pill compare-svg-dl" href="/r/{{ s.job_id }}/pelican.svg" download="clodex-pelican-{{ s.job_id }}.svg">SVG ↓</a>
+      </div>
+      {% else %}
+      <div class="pelican-empty">
+        {{ lt(locale, 'В этом отчёте нет валидного Пеликан SVG (возможно, был запущен режим Quick/Standard).', 'No valid Pelican SVG in this report (may have been run in Quick/Standard mode).', '该报告未包含有效鹈鹕 SVG（可能运行于快速/标准模式）。') }}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card compare-table-card">
+  <h2>{{ lt(locale, 'Матрица детекторов (A vs B)', 'Detector-by-Detector Diff Matrix', '逐项检测对比矩阵（A vs B）') }}</h2>
+  <div class="compare-table-wrap">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>{{ lt(locale, 'Детектор', 'Detector', '检测项') }}</th>
+          <th>A · {{ summary_a.domain }}</th>
+          <th>B · {{ summary_b.domain }}</th>
+          <th class="compare-col-diff">{{ lt(locale, 'Разница', 'Delta', '差值') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in diff_rows %}
+        <tr class="compare-diff-row{% if row.winner in ('a', 'b') %} is-different{% endif %}">
+          <td class="compare-det-name">{{ row.label }}</td>
+          <td class="compare-cell compare-cell-{{ row.a_css }}{% if row.winner == 'a' %} is-winner{% endif %}">
+            <span class="check-status compare-pill-{{ row.a_css }}">{{ row.a_short }}</span>
+            {% if row.a_score is not none %}<span class="compare-cell-score">{{ '%.0f' | format(row.a_score) }}</span>{% endif %}
+            {% if row.a_summary %}<div class="compare-cell-sub">{{ row.a_summary }}</div>{% endif %}
+          </td>
+          <td class="compare-cell compare-cell-{{ row.b_css }}{% if row.winner == 'b' %} is-winner{% endif %}">
+            <span class="check-status compare-pill-{{ row.b_css }}">{{ row.b_short }}</span>
+            {% if row.b_score is not none %}<span class="compare-cell-score">{{ '%.0f' | format(row.b_score) }}</span>{% endif %}
+            {% if row.b_summary %}<div class="compare-cell-sub">{{ row.b_summary }}</div>{% endif %}
+          </td>
+          <td class="compare-col-diff">
+            {% if row.winner == 'b' %}
+              <span class="compare-delta is-b">B +{{ '%.0f' | format(row.delta) }}</span>
+            {% elif row.winner == 'a' %}
+              <span class="compare-delta is-a">A +{{ '%.0f' | format(-row.delta) }}</span>
+            {% elif row.winner == 'tie' %}
+              <span class="compare-delta is-tie">=</span>
+            {% else %}
+              <span class="compare-delta is-tie">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+<section class="compare-empty-guide">
+  <div class="trust-cards">
+    <article class="trust-card">
+      <div class="why-num">01</div>
+      <h3>{{ lt(locale, 'Запустите 2 проверки', 'Run 2 checks', '运行两次检测') }}</h3>
+      <p>{{ lt(locale, 'Проверьте два разных AI API-провайдера на одной модели (или две разные модели) в режиме «Полная».', 'Test two AI API endpoints on the same model (or two models) using Full mode.', '在完整模式下对同一模型的两个不同中转站（或两个模型）分别发起检测。') }}</p>
+    </article>
+    <article class="trust-card">
+      <div class="why-num">02</div>
+      <h3>{{ lt(locale, 'Вставьте ID или ссылки /r/...', 'Paste IDs or /r/... URLs', '粘贴 ID 或 /r/... 链接') }}</h3>
+      <p>{{ lt(locale, 'На странице каждого отчёта есть кнопка «Сравнить», которая сразу подставляет первый отчёт в форму.', 'Every report page includes a Compare button that pre-fills Report A automatically.', '每个报告页都提供“对比”按钮，可一键带入报告 A。') }}</p>
+    </article>
+    <article class="trust-card">
+      <div class="why-num">03</div>
+      <h3>{{ lt(locale, 'Сравните факты, скорость и SVG', 'Compare proofs, tok/s & SVGs', '对比证据、速度与 SVG') }}</h3>
+      <p>{{ lt(locale, 'Сразу видно, у кого проходит thinking signature, работает Prompt Caching, быстрее TTFT/tok/s и лучше Пеликан SVG.', 'Instantly see who passes thinking signature, hits Prompt Caching, streams faster, and renders a cleaner Pelican SVG.', '一目了然对比 thinking signature、Prompt Caching 命中、真实流式速度与鹈鹕 SVG。') }}</p>
+    </article>
+  </div>
+  <div class="compare-quick-links">
+    <a class="btn btn-primary" href="{{ with_lang('/claude', locale) }}">{{ lt(locale, 'Проверить Claude →', 'Check Claude →', '检测 Claude →') }}</a>
+    <a class="btn btn-secondary" href="{{ with_lang('/openai', locale) }}">{{ lt(locale, 'Проверить OpenAI →', 'Check OpenAI →', '检测 OpenAI →') }}</a>
+    <a class="btn btn-secondary" href="{{ with_lang('/gemini', locale) }}">{{ lt(locale, 'Проверить Gemini →', 'Check Gemini →', '检测 Gemini →') }}</a>
+  </div>
+</section>
+{% endif %}
+
+<script>
+(function () {
+  const swapBtn = document.getElementById('compare-swap-btn');
+  const inA = document.getElementById('compare-a');
+  const inB = document.getElementById('compare-b');
+  if (swapBtn && inA && inB) {
+    swapBtn.addEventListener('click', function () {
+      const tmp = inA.value;
+      inA.value = inB.value;
+      inB.value = tmp;
+    });
+  }
+  const copyBtn = document.getElementById('copy-compare-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async function () {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = (window.__veridropI18n && window.__veridropI18n.copied) || 'Copied!';
+        setTimeout(function () { copyBtn.textContent = orig; }, 1600);
+      } catch (e) {}
+    });
+  }
+  const bgBtn = document.getElementById('compare-pelican-bg-btn');
+  if (bgBtn) {
+    const stages = document.querySelectorAll('.compare-pelican-stage');
+    const toDark = {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') | tojson }};
+    const toLight = {{ lt(locale, 'Светлый фон', 'Light canvas', '浅色背景') | tojson }};
+    bgBtn.addEventListener('click', function () {
+      let darkNow = false;
+      stages.forEach(function (st) { darkNow = st.classList.toggle('is-dark'); });
+      bgBtn.textContent = darkNow ? toLight : toDark;
+    });
+  }
+})();
+</script>
+{% endblock %}

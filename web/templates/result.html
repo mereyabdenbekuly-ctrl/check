@@ -50,6 +50,9 @@
     </p>
   </div>
   <div class="result-actions">
+    <a class="btn btn-secondary" href="{{ with_lang('/compare', locale, {'a': job_id}) }}">
+      {{ lt(locale, 'Сравнить', 'Compare', '对比报告') }}
+    </a>
     <a class="btn btn-secondary" href="{{ with_lang('/r/' ~ job_id ~ '.jpg', locale) }}" download="clodex-check-{{ job_id }}.jpg">
       {{ lt(locale, 'Скачать JPG', 'Download JPG', '下载 JPG') }}
     </a>
