@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
 {% block title %}{{ lt(locale, 'Проверка идёт · CLODEX Check', 'Detection in progress · CLODEX Check', '检测进行中 · CLODEX Check') }}{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block hreflang %}{% endblock %}
 
 {% block content %}
 <section class="running-shell" data-job-id="{{ job_id }}">

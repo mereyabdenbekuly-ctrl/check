@@ -1,27 +1,28 @@
 # CLODEX Check
 
-> CLODEX Check is an open-source AI API authenticity and protocol checker (AGPL-3.0) hosted at https://check.clodex.xyz.
-> In 30–75 seconds it verifies whether an AI API endpoint genuinely passes through Claude, OpenAI (GPT), or Gemini models, or silently swaps/rewraps responses from a cheaper backend.
+> CLODEX Check (https://check.clodex.xyz) is an open-source (AGPL-3.0) AI API authenticity, protocol, and streaming auditor for Claude, OpenAI (GPT), and Gemini endpoints.
+> In 60–80 seconds it runs up to 17 detectors to prove whether an AI API proxy or gateway truly serves the genuine model or silently substitutes a cheaper backend, truncates context, disables Prompt Caching, injects hidden system prompts, or buffers fake streams.
 
-## Pages
+## Primary Pages
 
-- [Home](https://check.clodex.xyz/): Overview and protocol picker (RU / EN / ZH).
-- [Claude API Check](https://check.clodex.xyz/claude): 17 detectors for Anthropic Messages API (`/v1/messages`), anchored by Anthropic server-side `thinking signature` cryptographic verification, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, anti-cache reasoning, Pelican SVG visual benchmark, and true streaming tok/s (Opus 5.5/5/4.8/4.7, Sonnet 5.5/5/4.6, Haiku 5.5/4.5).
-- [OpenAI / GPT API Check](https://check.clodex.xyz/openai): 14 detectors for OpenAI Chat Completions (`/v1/chat/completions`), including `o200k_base` tokenizer probe, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, anti-cache reasoning, Pelican SVG benchmark, strict JSON Schema, function calling, true streaming tok/s, and cross-vendor usage fingerprints (GPT-6.2/6.1/6/5.6/5.5/5.4).
-- [Gemini API Check](https://check.clodex.xyz/gemini): 12 detectors for Gemini OpenAI-compatible endpoints including SentencePiece tokenizer probe, dynamic PNG vision, anti-cache reasoning, system-prompt audit, Pelican SVG, function calling, JSON Schema, and true streaming tok/s (Gemini 4 / 3.8 / 3 / 2.5).
-- [Pelican SVG Benchmark](https://check.clodex.xyz/pelican): Standalone Simon Willison Pelican-on-a-bicycle SVG visual test for Claude, OpenAI, and Gemini (1 streamed call, live SVG canvas, TTFT, true tok/s, buffered-stream detector).
-- [Side-by-Side Compare](https://check.clodex.xyz/compare): Compare any two `/r/{id}` reports side by side — overall score delta, TTFT, live streaming tok/s, detector-by-detector diff matrix, and two Pelican SVGs side by side.
-- [FAQ](https://check.clodex.xyz/faq): Practical and technical explanations of detectors, scoring, and API-key privacy.
+- [Home](https://check.clodex.xyz/): Protocol hub and feature overview (RU / EN / ZH).
+- [Claude API Authenticity Check](https://check.clodex.xyz/claude): 17 detectors for Anthropic Messages API (`/v1/messages`), anchored by Anthropic server-side `thinking signature` cryptographic verification, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, anti-cache reasoning, Pelican SVG visual benchmark, and true streaming `tok/s`.
+- [OpenAI / GPT API Check](https://check.clodex.xyz/openai): 14 detectors for OpenAI Chat Completions (`/v1/chat/completions`), including `o200k_base` tokenizer probe, Prompt Caching, system-prompt audit, dynamic PNG vision, anti-cache reasoning, Pelican SVG benchmark, strict JSON Schema, function calling, true streaming `tok/s`, and cross-vendor usage fingerprint detection.
+- [Gemini API Check](https://check.clodex.xyz/gemini): 12 detectors for Gemini OpenAI-compatible endpoints including SentencePiece tokenizer probe, dynamic PNG vision, anti-cache reasoning, system-prompt audit, Pelican SVG, function calling, JSON Schema, and true streaming `tok/s`.
+- [Pelican-on-a-Bicycle SVG Benchmark](https://check.clodex.xyz/pelican): Standalone Simon Willison visual SVG benchmark for Claude, OpenAI, and Gemini (1 streamed call, live sanitized SVG preview, TTFT, live `tok/s`, and buffered-stream check).
+- [Side-by-Side Provider Comparison](https://check.clodex.xyz/compare): Compare any two `/r/{id}` reports side by side — score delta, TTFT, live `tok/s`, detector-by-detector diff matrix, and two Pelican SVGs side by side.
+- [FAQ](https://check.clodex.xyz/faq): Practical and technical answers on authenticity checks, thinking signatures, Pelican SVG, Prompt Caching, streaming, privacy, and self-hosting.
+- [Full Technical Reference for LLMs](https://check.clodex.xyz/llms-full.txt): Complete detector weights, methodology, API surface, and security model.
 
 ## Privacy & Security
 
-- API keys live in memory strictly for the duration of a single check job and are discarded immediately afterward.
-- Raw keys are never written to disk, logs, report JSON, or databases.
-- Public reports display only a masked key prefix/suffix.
-- Full source code is public under AGPL-3.0 at https://github.com/mereyabdenbekuly-ctrl/check and can be self-hosted via Python or Docker.
+- Zero-key-persistence: API keys live strictly in RAM during a check run and are discarded immediately afterward.
+- Raw keys are never written to disk, logs, report JSON, or databases; public reports contain only a masked prefix/suffix.
+- Model-generated SVGs are strictly sanitized (stripping `<script>`, `<foreignObject>`, event handlers, `<!DOCTYPE>`/`<!ENTITY>`) and downloaded with `Content-Security-Policy: sandbox`.
+- 100% open source under AGPL-3.0 at https://github.com/mereyabdenbekuly-ctrl/check (Docker / Python / CLI self-hosting).
 
 ## Links
 
-- Checker: https://check.clodex.xyz
-- CLODEX Main Platform: https://clodex.xyz
-- Source Code: https://github.com/mereyabdenbekuly-ctrl/check
+- Web Service: https://check.clodex.xyz
+- Main Platform: https://clodex.xyz
+- GitHub Repository: https://github.com/mereyabdenbekuly-ctrl/check

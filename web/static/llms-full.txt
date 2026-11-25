@@ -1,0 +1,51 @@
+# CLODEX Check — Full Technical & Methodology Reference
+
+> Canonical URL: https://check.clodex.xyz
+> Source Repository: https://github.com/mereyabdenbekuly-ctrl/check (AGPL-3.0-or-later)
+> Maintainer: CLODEX (https://clodex.xyz)
+
+## Overview
+
+CLODEX Check is an independent, open-source authenticity and wire-protocol auditor for AI API relays, proxies, and aggregators supporting:
+1. **Anthropic Claude (`/v1/messages`)** — 17 detectors (Cryptographic verification tier).
+2. **OpenAI / GPT (`/v1/chat/completions`)** — 14 detectors (Behavioral & protocol tier).
+3. **Google Gemini (`/chat/completions` OpenAI-compatible)** — 12 detectors (Protocol & capability tier).
+
+## Detector Catalog & Weights
+
+### Claude / Anthropic (17 detectors)
+- `thinking_signature` (weight 25): Enables adaptive/extended thinking and verifies Anthropic's unforgeable server-side cryptographic signature (`signature` 500–2000 bytes).
+- `behavioral_signature` (weight 15): 3 characteristic Claude formatting and refusal probes.
+- `long_context` (weight 15, opt-in): Needle-in-a-haystack context window honesty probe (32k → 200k → 950k).
+- `structured_output` (weight 12): `get_weather` tool calling (`tool_use`, `toolu_` ID prefix, strict JSON schema, `stop_reason=tool_use`).
+- `consistency` (weight 10): `response.model` prefix match and output length CV across 3 identical calls.
+- `knowledge` (weight 10): 5 factual Anthropic/Claude probes.
+- `token_usage` (weight 10): `usage` completeness, input token growth, stream/non-stream parity, and `/v1/messages/count_tokens` cross-check.
+- `pdf` (weight 8): Dynamically generated PDF carrying a random `MAGIC-...` token to verify native PDF ingestion.
+- `prompt_cache` (weight 8): 2 consecutive calls with a >2,000-token `cache_control=ephemeral` prefix verifying real `cache_read_input_tokens > 0`.
+- `pelican_svg` (weight 8): Streamed Simon Willison "pelican riding a bicycle" SVG benchmark, measuring vector geometry complexity and live streaming `tok/s`.
+- `vision_image` (weight 7): Dynamically rendered in-memory PNG with a one-time `VRF-XXXX` verification code (impossible to pre-cache).
+- `system_injection` (weight 6): Random canary rule verifying system prompt integrity plus hidden input-token bloat check on bare `"hi"`.
+- `dynamic_challenge` (weight 6): Per-run randomized arithmetic + character-by-character string reversal in strict JSON.
+- `identity` (weight 5): System-prompt-free self-identification probe and foreign-brand leak detector.
+- `protocol` (weight 5, passive): Anthropic Messages API schema fidelity and foreign-provider artifact audit.
+- `integrity` (weight 5): Stream (SSE) vs non-stream output similarity, `stop_reason`, and token parity.
+- `message_id` (weight 5, passive): Validates `msg_...` ID prefixes across all captured responses.
+
+### OpenAI / GPT (14 detectors)
+- `basic_request` (15), `model_consistency` (15), `function_calling` (15), `structured_output` (15, `response_format=json_schema strict=true`), `protocol` (15, catches leaked `claude_*` / `gemini_*` / mixed usage fields), `integrity` (15), `long_context` (15, opt-in), `token_billing` (10), `tokenizer_probe` (10, `o200k_base` Unicode/CJK/emoji/whitespace-digit edge cases), `prompt_cache` (8, `cached_tokens > 0`), `pelican_svg` (8), `vision_image` (7), `system_injection` (6), `dynamic_challenge` (6).
+
+### Gemini OpenAI-Compatible (12 detectors)
+- `basic_request` (15), `model_info` (15), `function_calling` (15), `structured_output` (15), `protocol` (15), `integrity` (15), `token_usage` (10), `tokenizer_probe` (10, SentencePiece edge cases), `pelican_svg` (8), `vision_image` (7), `system_injection` (6), `dynamic_challenge` (6).
+
+## Streaming Throughput & Fake-Stream Detection
+Every streaming probe records per-chunk arrival timestamps (`StreamSample`). CLODEX Check computes true generation speed (`tokens_per_second`) from inter-chunk generation time (excluding TTFT) and classifies streams as `real_stream`, `buffered_burst` (proxy buffers the entire response and emits it in a single burst), or `short_stream`.
+
+## Security & Privacy Model
+- Zero-key-persistence: API keys stay in memory only for the lifetime of an active check and are never persisted to disk, logs, databases, or JSON reports.
+- Public report URLs (`/r/{job_id}`) and shareable JPG cards (`/r/{job_id}.jpg`) store only a masked API key.
+- SVG output is strictly sanitized against XSS/XXE before base64 `<img>` preview and served for download with `Content-Security-Policy: sandbox` and `X-Content-Type-Options: nosniff`.
+- Self-hosting supported via Docker (`docker build -t clodex-check . && docker run -p 127.0.0.1:8088:8088 clodex-check`) and Python CLI (`relay-detector detect` / `relay-detector compare`).
+
+## Credits & Licensing
+Licensed under **AGPL-3.0-or-later**. Built upon the open-source `canarybyte/veridrop` engine, inspired by Simon Willison's Pelican-on-a-bicycle SVG benchmark and open-source relay verification techniques from the community.

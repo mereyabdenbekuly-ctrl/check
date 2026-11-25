@@ -2,10 +2,10 @@
 
 {% block title %}{{ seo_title or lt(locale, 'Результат проверки · CLODEX Check', 'Detection result · CLODEX Check', '检测结果 · CLODEX Check') }}{% endblock %}
 {% block description %}{{ seo_description or lt(locale, 'Отчёт проверки подлинности AI API от CLODEX Check', 'AI API authenticity check report by CLODEX Check', 'CLODEX Check AI API 真伪检测报告') }}{% endblock %}
+{% block og_type %}article{% endblock %}
 {% block og_title %}{{ seo_title or lt(locale, 'Отчёт проверки API · CLODEX Check', 'API Check Report · CLODEX Check', 'API 检测报告 · CLODEX Check') }}{% endblock %}
 {% block og_description %}{{ seo_og_description or seo_description or lt(locale, 'Отчёт проверки подлинности AI API', 'AI API authenticity report', 'AI API 真伪检测报告') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/r/{{ job_id }}{% endblock %}
-{% block og_url %}https://check.clodex.xyz/r/{{ job_id }}{% endblock %}
+{% block robots %}{% if report.run_error %}noindex,nofollow{% else %}index,follow,max-image-preview:large,max-snippet:-1{% endif %}{% endblock %}
 {% block og_image %}
   <meta property="og:image" content="https://check.clodex.xyz/r/{{ job_id }}.jpg" />
   <meta property="og:image:width" content="1400" />
@@ -13,6 +13,36 @@
   <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:image:alt" content="{{ seo_og_description or 'CLODEX Check report' }}" />
   <meta name="twitter:image" content="https://check.clodex.xyz/r/{{ job_id }}.jpg" />
+{% endblock %}
+{% block head_extra %}
+{% set _p = report.protocol or 'anthropic' %}
+{% set _ppath = '/openai' if _p == 'openai' else ('/gemini' if _p == 'gemini' else '/claude') %}
+{% set _pname = 'OpenAI' if _p == 'openai' else ('Gemini' if _p == 'gemini' else 'Claude') %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+        {"@type": "ListItem", "position": 2, "name": "{{ _pname }}", "item": "https://check.clodex.xyz{{ _ppath }}"},
+        {"@type": "ListItem", "position": 3, "name": {{ (report.target_model or ('Report #' ~ job_id)) | tojson }}, "item": "{{ seo_canonical }}"}
+      ]
+    },
+    {
+      "@type": "TechArticle",
+      "headline": {{ (seo_title or 'CLODEX Check report') | tojson }},
+      "description": {{ (seo_description or '') | tojson }},
+      "url": "{{ seo_canonical }}",
+      "image": "https://check.clodex.xyz/r/{{ job_id }}.jpg",
+      {% if report.timestamp %}"datePublished": {{ report.timestamp | tojson }},{% endif %}
+      "author": {"@type": "Organization", "name": "CLODEX Check", "url": "https://check.clodex.xyz/"},
+      "publisher": {"@type": "Organization", "name": "CLODEX", "url": "https://clodex.xyz/"}
+    }
+  ]
+}
+</script>
 {% endblock %}
 
 {% block content %}
@@ -231,7 +261,7 @@
   <div class="metric{% if perf.ttft_ms and perf.ttft_ms > 2000 %} metric-warn{% endif %}">
     <div class="metric-label">{{ lt(locale, 'Первый токен', 'First token', '首 TOKEN') }}</div>
     <div class="metric-value" title="{{ lt(locale, 'Время до первого токена (TTFT, минимум по потоковым запросам)', 'Time to first token (minimum across streaming probes)', 'Time to first token（所有流式请求最小值）') }}">
-      {% if perf.ttft_ms is not none %}{{ '{:,}'.format(perf.ttft_ms) }}ms{% else %}—{% endif %}
+      {% if perf.ttft_ms is defined and perf.ttft_ms is not none %}{{ '{:,}'.format(perf.ttft_ms) }}ms{% else %}—{% endif %}
     </div>
   </div>
   <div class="metric{% if (perf.total_latency_ms or 0) > 30000 %} metric-warn{% endif %}">

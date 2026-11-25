@@ -54,13 +54,31 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 templates.env.globals.update(with_lang=with_lang, tr=tr, lt=lt)
 
 
+_SITE_ORIGIN = "https://check.clodex.xyz"
+
+
 def _page_ctx(request: Request, **context: object) -> dict[str, object]:
     locale = detect_locale(request)
+    raw_path = str(context.get("seo_path") or request.url.path or "/")
+    if raw_path == "/ru":
+        raw_path = "/"
+    base_canonical = f"{_SITE_ORIGIN}{raw_path}"
+    seo_canonical = with_lang(base_canonical, locale)
+    hreflang_links = [
+        ("ru", base_canonical),
+        ("en", with_lang(base_canonical, "en")),
+        ("zh-Hans", with_lang(base_canonical, "zh")),
+        ("x-default", base_canonical),
+    ]
+    og_alt_locales = [og_locale(loc) for loc in ("ru", "en", "zh") if loc != locale]
     payload: dict[str, object] = {
         "locale": locale,
         "ui": ui_copy(locale),
         "html_lang": html_lang(locale),
         "og_locale": og_locale(locale),
+        "og_alt_locales": og_alt_locales,
+        "seo_canonical": seo_canonical,
+        "hreflang_links": hreflang_links,
         "lang": locale,
     }
     payload.update(context)
@@ -84,20 +102,21 @@ def _render(request: Request, template_name: str, **context: object) -> HTMLResp
 
 @app.middleware("http")
 async def no_html_cache(request: Request, call_next):
-    """Prevent browsers from caching HTML responses.
+    """Manage HTTP cache headers and crawler hints.
 
-    HTML pages reference versioned CSS/JS via ?v=N query strings, but the
-    cache-bust only works if the browser refetches the HTML in the first place.
-    Without an explicit Cache-Control, browsers apply a heuristic that can hold
-    HTML for hours — making style/template iterations invisible to returning
-    visitors. `no-cache` (NOT no-store) lets the browser keep a copy but
-    forces revalidation against the server every time, so updates appear
-    immediately while still serving 304s for unchanged pages.
+    - HTML pages use `no-cache, must-revalidate` so updates appear immediately.
+    - Versioned `/static/*?v=...` assets get immutable 1-year browser caching.
+    - `/api/*` and `/healthz` carry `X-Robots-Tag: noindex, nofollow`.
     """
     response = await call_next(request)
+    path = request.url.path
     ctype = response.headers.get("content-type", "")
     if ctype.startswith("text/html"):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    elif path.startswith("/static/") and "v" in request.query_params:
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    if path.startswith("/api/") or path == "/healthz":
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
     return response
 
 
@@ -151,9 +170,10 @@ async def hub(request: Request) -> HTMLResponse:
     return _render(request, "hub.html")
 
 
-@app.get("/ru", response_class=HTMLResponse)
-async def hub_ru(request: Request) -> HTMLResponse:
-    return _render(request, "hub.html", canonical_url="https://check.clodex.xyz/ru")
+@app.get("/ru")
+async def hub_ru() -> RedirectResponse:
+    """Permanent redirect to canonical root to avoid duplicate indexing."""
+    return RedirectResponse(url="/", status_code=301)
 
 
 @app.get("/claude", response_class=HTMLResponse)
@@ -1030,6 +1050,15 @@ async def llms_txt() -> Response:
     )
 
 
+@app.get("/llms-full.txt")
+async def llms_full_txt() -> Response:
+    return Response(
+        content=(STATIC_DIR / "llms-full.txt").read_bytes(),
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
 # (loc, changefreq, priority, template_filename) — lastmod resolved at
 # request time from the template file's mtime.
 _STATIC_SITEMAP_URLS = [
@@ -1059,19 +1088,47 @@ def _template_lastmod(filename: str) -> str:
     return datetime.fromtimestamp(mtime, tz=timezone.utc).strftime("%Y-%m-%d")
 
 
+_NON_INDEXABLE_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "example.com", "example.org", "relay-a.example")
+
+
+def _is_indexable_report_file(json_path: Path) -> bool:
+    """Exclude broken or local/test reports from sitemap.xml."""
+    try:
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    if data.get("run_error"):
+        return False
+    base_url = str(data.get("base_url") or "").lower()
+    if any(h in base_url for h in _NON_INDEXABLE_HOSTS):
+        return False
+    return True
+
+
 @app.get("/sitemap.xml")
 async def sitemap_xml() -> Response:
-    """Dynamic sitemap — static product pages + public reports."""
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    """Dynamic multilingual sitemap — static product pages (with hreflang) + clean public reports."""
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+        'xmlns:xhtml="http://www.w3.org/1999/xhtml">',
+    ]
 
     for loc, freq, prio, tpl in _STATIC_SITEMAP_URLS:
         lastmod = _template_lastmod(tpl)
-        line = f"  <url><loc>{loc}</loc>"
+        lines.append("  <url>")
+        lines.append(f"    <loc>{loc}</loc>")
         if lastmod:
-            line += f"<lastmod>{lastmod}</lastmod>"
-        line += f"<changefreq>{freq}</changefreq><priority>{prio}</priority></url>"
-        lines.append(line)
+            lines.append(f"    <lastmod>{lastmod}</lastmod>")
+        lines.append(f"    <changefreq>{freq}</changefreq>")
+        lines.append(f"    <priority>{prio}</priority>")
+        lines.append(f'    <xhtml:link rel="alternate" hreflang="ru" href="{loc}"/>')
+        lines.append(f'    <xhtml:link rel="alternate" hreflang="en" href="{loc}?lang=en"/>')
+        lines.append(f'    <xhtml:link rel="alternate" hreflang="zh-Hans" href="{loc}?lang=zh"/>')
+        lines.append(f'    <xhtml:link rel="alternate" hreflang="x-default" href="{loc}"/>')
+        lines.append("  </url>")
 
     seen: set[str] = set()
     for dir_path in _SITEMAP_REPORT_DIRS:
@@ -1082,6 +1139,8 @@ async def sitemap_xml() -> Response:
             if job_id in seen:
                 continue
             seen.add(job_id)
+            if not _is_indexable_report_file(json_path):
+                continue
             try:
                 lastmod = datetime.fromtimestamp(
                     json_path.stat().st_mtime, tz=timezone.utc

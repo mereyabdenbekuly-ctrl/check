@@ -1,26 +1,37 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'FAQ · Проверка AI API relay | Clodex', 'FAQ · AI API relay authenticity checker | Clodex', '常见问题 · AI API relay 真伪检测 | Clodex') }}{% endblock %}
-{% block description %}{{ lt(locale, total_count ~ ' вопросов о Claude, OpenAI, Gemini relay, signatures, usage, приватности и self-hosting.', total_count ~ ' FAQ items about Claude, OpenAI, Gemini relays, signatures, usage, privacy, and self-hosting.', total_count ~ ' 个关于 Claude、OpenAI、Gemini relay、signature、usage、隐私和自托管的问题。') }}{% endblock %}
-{% block og_title %}{{ lt(locale, 'FAQ по AI API relay · Clodex', 'AI API relay FAQ · Clodex', 'AI API relay 常见问题 · Clodex') }}{% endblock %}
-{% block og_description %}{{ lt(locale, 'Практические ответы о подлинности relay, протоколах и безопасности API keys.', 'Practical answers about relay authenticity, protocols, and API-key safety.', '关于 relay 真伪、协议和 API key 安全的实用回答。') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/faq{% endblock %}
-{% block og_url %}https://check.clodex.xyz/faq{% endblock %}
-
+{% block title %}{{ lt(locale, 'FAQ по проверке AI API (Claude, GPT, Gemini) · CLODEX Check', 'AI API Authenticity Checker FAQ (Claude, GPT, Gemini) · CLODEX Check', 'AI API 真伪检测常见问题 (Claude / GPT / Gemini) · CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, total_count ~ ' подробных ответов о проверке Claude, OpenAI и Gemini API: thinking signature, Пеликан-тест SVG, Prompt Caching, фейк-стрим tok/s, безопасность ключей и self-hosting.', total_count ~ ' detailed answers on auditing Claude, OpenAI, and Gemini APIs: thinking signature, Pelican SVG test, Prompt Caching, fake-stream tok/s detection, key privacy, and self-hosting.', total_count ~ ' 个关于 Claude、OpenAI、Gemini 接口检测的详细解答：thinking signature、鹈鹕 SVG、Prompt Caching、假流式检测、密钥安全与自托管。') }}{% endblock %}
 {% block head_extra %}
 <script type="application/ld+json">
 {{ jsonld | safe }}
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+    {"@type": "ListItem", "position": 2, "name": "FAQ", "item": "{{ seo_canonical }}"}
+  ]
+}
+</script>
 {% endblock %}
 
 {% block content %}
+<nav class="breadcrumb" aria-label="{{ lt(locale, 'Навигация', 'Breadcrumb', '面包屑') }}">
+  <a href="{{ with_lang('/', locale) }}">{{ lt(locale, 'Главная', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">FAQ</span>
+</nav>
+
 <section class="faq-hero">
-  <h1>{{ lt(locale, 'FAQ', 'FAQ', '常见问题') }}</h1>
+  <h1>{{ lt(locale, 'Частые вопросы о проверке AI API', 'AI API Authenticity Checker FAQ', 'AI API 检测常见问题') }}</h1>
   <p class="faq-hero-sub">
     {{ lt(locale,
-      'Clodex помогает понять, действительно ли AI API relay передаёт Claude / OpenAI / Gemini, и какие риски есть у ключей, usage и протоколов.',
-      'Clodex helps you understand whether an AI API relay truly passes through Claude / OpenAI / Gemini, and what risks exist around keys, usage, and protocols.',
-      'Clodex 帮你判断 AI API relay 是否真实透传 Claude / OpenAI / Gemini，以及 key、usage 和协议相关风险。') }}
+      'CLODEX Check помогает понять, действительно ли AI API-провайдер отдаёт оригинальные Claude, OpenAI и Gemini, как работают thinking signature, Пеликан-тест SVG, Prompt Caching и почему ключи не сохраняются.',
+      'CLODEX Check verifies whether an AI API endpoint genuinely serves Claude, OpenAI, or Gemini, explaining thinking signatures, the Pelican SVG benchmark, Prompt Caching, streaming audits, and zero-key-persistence.',
+      'CLODEX Check 帮你验证 AI API 是否真实透传 Claude、OpenAI 与 Gemini，详解 thinking signature、鹈鹕 SVG、Prompt Caching、流式测速与密钥安全。') }}
     {{ lt(locale, 'Всего вопросов:', 'Total questions:', '问题总数：') }} <strong>{{ total_count }}</strong>
   </p>
 </section>
@@ -35,7 +46,7 @@
     </ul>
   </aside>
 
-  <main class="faq-main">
+  <div class="faq-main">
     {% for cat in categories %}
     <section class="faq-category" id="{{ cat.id }}">
       <h2>{{ cat.title }}</h2>
@@ -63,7 +74,7 @@
         <a href="{{ with_lang('/claude', locale) }}">{{ lt(locale, 'проверку', 'a check', '跑一次检测') }}</a>.
       </p>
     </section>
-  </main>
+  </div>
 </div>
 
 <script>

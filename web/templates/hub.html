@@ -1,35 +1,80 @@
 {% extends "base.html" %}
 
 {% block title %}{{ lt(locale, 'CLODEX Check — проверка подлинности AI API: Claude, GPT, Gemini', 'CLODEX Check — AI API Authenticity Checker: Claude, GPT, Gemini', 'CLODEX Check · AI API 真伪检测：Claude / GPT / Gemini') }}{% endblock %}
-{% block description %}{{ lt(locale, 'Открытый сервис проверки AI API и прокси-эндпоинтов: настоящий ли Claude, GPT или Gemini, не подменяется ли модель, корректны ли thinking signature, usage, stream и протокол. API-ключ не сохраняется.', 'Open-source AI API and proxy authenticity checker: verify whether Claude, GPT, or Gemini is genuine, check thinking signatures, usage, streaming, and protocol integrity. API keys are never persisted.', '开源 AI API 与中转站真伪检测：验证 Claude、GPT、Gemini 是否为原版透传，检查 thinking signature、usage、stream 和协议规范。API key 永不落盘。') }}{% endblock %}
-{% block og_title %}{{ self.title() }}{% endblock %}
-{% block og_description %}{{ self.description() }}{% endblock %}
-{% block canonical %}{{ canonical_url or 'https://check.clodex.xyz/' }}{% endblock %}
-{% block og_url %}{{ canonical_url or 'https://check.clodex.xyz/' }}{% endblock %}
-{% block twitter_title %}{{ self.title() }}{% endblock %}
-{% block twitter_description %}{{ self.description() }}{% endblock %}
+{% block description %}{{ lt(locale, 'Бесплатный open-source сервис проверки AI API и прокси-релеев: до 17 проверок Claude, OpenAI и Gemini, thinking signature, Пеликан-тест SVG, реальный tok/s, Prompt Caching и сравнение A vs B. API-ключ не сохраняется.', 'Free open-source AI API and proxy authenticity checker: up to 17 checks for Claude, OpenAI, and Gemini, Anthropic thinking signature, Pelican SVG benchmark, live tok/s, Prompt Caching, and side-by-side compare. Keys never persisted.', '免费开源 AI API 与中转站真伪检测：多达 17 项 Claude / OpenAI / Gemini 检测，支持 thinking signature、鹈鹕骑车 SVG、真实流式 tok/s、Prompt Caching 与并排对比。API key 永不落盘。') }}{% endblock %}
 {% block head_extra %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "CLODEX Check",
-  "alternateName": "Проверка подлинности AI API",
-  "url": "https://check.clodex.xyz/",
-  "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "Web",
-  "inLanguage": "{{ html_lang or 'ru-RU' }}",
-  "description": "Открытый инструмент проверки AI API-провайдеров и релеев: Claude thinking signature, OpenAI Chat Completions, Gemini, usage, stream и long context.",
-  "publisher": {
-    "@type": "Organization",
-    "name": "CLODEX",
-    "url": "https://clodex.xyz/"
-  },
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD"
-  }
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "name": "CLODEX Check",
+      "alternateName": ["Проверка подлинности AI API", "CLODEX AI API Checker"],
+      "url": "https://check.clodex.xyz/",
+      "inLanguage": ["ru-RU", "en-US", "zh-CN"],
+      "publisher": {
+        "@type": "Organization",
+        "name": "CLODEX",
+        "url": "https://clodex.xyz/",
+        "logo": "https://check.clodex.xyz/static/clodex-icon.png"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "CLODEX Check",
+      "url": "{{ seo_canonical }}",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web, Docker, Linux, macOS",
+      "isAccessibleForFree": true,
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "softwareHelp": "https://check.clodex.xyz/faq",
+      "downloadUrl": "https://github.com/mereyabdenbekuly-ctrl/check",
+      "inLanguage": "{{ html_lang or 'ru-RU' }}",
+      "description": "{{ lt(locale, 'Открытый инструмент проверки AI API и релеев: до 17 проверок для Claude, OpenAI и Gemini, криптоподпись Anthropic thinking signature, Пеликан-тест SVG, Prompt Caching, аудит system-инъекций, динамический PNG Vision, реальный tok/s и сравнение провайдеров.', 'Open-source AI API authenticity auditor: up to 17 detectors for Claude, OpenAI, and Gemini including Anthropic thinking signature, Pelican SVG benchmark, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, true streaming tok/s, and side-by-side comparison.', '开源 AI API 真伪检测工具：支持 Claude / OpenAI / Gemini 多达 17 项检测，含 thinking signature、鹈鹕骑车 SVG、Prompt Caching、系统提示词审计、动态视觉与并排对比。') }}",
+      "featureList": [
+        "Anthropic Claude server-side thinking signature cryptographic verification",
+        "Pelican-on-a-bicycle SVG visual benchmark with strict XSS sanitization",
+        "True streaming tok/s measurement and buffered fake-stream detection",
+        "Real Prompt Caching hit verification (Claude & OpenAI)",
+        "Hidden system-prompt injection and token-bloat audit",
+        "Dynamic in-memory PNG Vision verification (VRF-XXXX)",
+        "o200k_base and SentencePiece tokenizer edge-case fingerprinting",
+        "Side-by-side provider and model comparison (/compare)",
+        "Zero-key-persistence privacy model"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    },
+    {
+      "@type": "HowTo",
+      "name": "{{ lt(locale, 'Как проверить подлинность AI API за 3 шага', 'How to verify an AI API endpoint in 3 steps', '三步检测 AI API 接口真伪') }}",
+      "totalTime": "PT1M",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "{{ lt(locale, 'Выберите протокол и введите Base URL + API-ключ', 'Choose protocol and enter Base URL + API key', '选择协议并填写 Base URL 与 API key') }}",
+          "url": "https://check.clodex.xyz/claude"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "{{ lt(locale, 'Запустите полный аудит (до 17 проверок) или Пеликан-тест SVG', 'Run the full suite (up to 17 checks) or the Pelican SVG test', '运行完整检测或单独运行鹈鹕骑车 SVG 测试') }}",
+          "url": "https://check.clodex.xyz/pelican"
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "{{ lt(locale, 'Изучите отчёт, скачайте JPG/SVG или сравните два провайдера на /compare', 'Inspect the report, export JPG/SVG, or compare two providers on /compare', '查看报告、导出 JPG/SVG 或前往 /compare 并排对比') }}",
+          "url": "https://check.clodex.xyz/compare"
+        }
+      ]
+    }
+  ]
 }
 </script>
 {% endblock %}

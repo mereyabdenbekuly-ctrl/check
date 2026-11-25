@@ -39,10 +39,17 @@ _FAQ_DATA: dict[str, tuple[dict[str, object], ...]] = {
             ("fake-tactics", "Как relay обычно подменяет модели?", "Например, продаёт GPT, но отправляет запрос в Claude backend; продаёт Claude, но маршрутизирует через Bedrock-like слой без thinking signature; или отключает advanced features и возвращает только обычный текст."),
             ("ask-who-are-you", "Можно просто спросить модель, кто она?", "Нет. Ответ на вопрос об идентичности легко подделать system prompt-ом. Надёжнее смотреть на поля протокола, signatures, tool calls и usage."),
         )),
-        _category("claude", "Claude relay", "Claude проверяется глубже всего благодаря thinking signature.", (
-            ("thinking-signature", "Что такое thinking signature?", "Это серверная подпись Anthropic в thinking response. Relay теоретически не может сгенерировать её сам, поэтому отсутствие или странная форма signature — сильный сигнал проблемы."),
-            ("claude-coverage", "Что проверяет Claude detector?", "Thinking signature, identity, behavior, knowledge, PDF, tool use, structured output, protocol, stream consistency, message IDs, usage и optional long context."),
-            ("claude-cost", "Проверка тратит токены?", "Да. Clodex отправляет реальные запросы к вашему relay. Стоимость списывает ваш провайдер или relay, не Clodex."),
+        _category("claude", "Claude relay", "Claude проверяется глубже всего благодаря thinking signature (17 детекторов).", (
+            ("thinking-signature", "Что такое thinking signature?", "Это криптографическая серверная подпись Anthropic в thinking response. Relay теоретически не может сгенерировать её сам, поэтому отсутствие или странная форма signature — сильный сигнал проблемы."),
+            ("claude-coverage", "Что проверяет Claude detector?", "17 детекторов: thinking signature, identity, поведенческий отпечаток, знания, нативный PDF, tool use / structured output, протокол, stream/non-stream, message IDs, usage + count_tokens, Prompt Caching, аудит system-инъекций, динамический PNG Vision, анти-кэш логика, Пеликан-тест SVG и опциональный long context до 950k."),
+            ("claude-cost", "Проверка тратит токены?", "Да. CLODEX Check отправляет реальные запросы к вашему эндпоинту. Стоимость списывает проверяемый провайдер, не CLODEX Check."),
+        )),
+        _category("advanced", "Пеликан-тест, кэш, токенизатор и сравнение", "Продвинутые проверки подлинности, скорости и качества AI API.", (
+            ("pelican-svg", "Что такое Пеликан-тест (SVG) и зачем он нужен?", "Это визуальный бенчмарк Симона Уиллисона: модель за один потоковый запрос рисует пеликана на велосипеде в SVG. По геометрии, количеству фигур, цветовой палитре и колёсам сразу видно уровень модели — слабую подмену видно глазами. Доступен отдельной вкладкой на странице каждой модели и на /pelican."),
+            ("fake-stream", "Как CLODEX Check находит «фейковый» стрим и измеряет tok/s?", "На каждом потоковом запросе мы записываем точные метки времени прихода чанков (StreamSample). Реальная скорость tok/s считается по времени генерации после первого токена, а если весь текст пришёл одним рывком после паузы — стрим помечается как буферизованный (buffered_burst)."),
+            ("prompt-cache-check", "Как проверяется реальный Prompt Caching?", "Отправляются два последовательных запроса с одинаковым префиксом >2000 токенов. Настоящий Prompt Caching возвращает cache_read_input_tokens > 0 (Claude) или cached_tokens > 0 (OpenAI). Если там 0 — провайдер отбрасывает кэш или раскидывает запросы по разным аккаунтам."),
+            ("system-injection-check", "Что ищет аудит скрытых system-инъекций?", "Во-первых, канареечный тест проверяет, доходит ли ваш system prompt до модели без перезаписи. Во-вторых, пустой запрос «hi» выявляет скрытую обёртку промпта, из-за которой вы переплачиваете за лишние входные токены."),
+            ("compare-providers", "Как сравнить двух AI API-провайдеров на /compare?", "Прогоните два провайдера (или две модели) и вставьте их ссылки /r/{id} на странице /compare — увидите разницу баллов, TTFT, tok/s, матрицу всех детекторов и два Пеликана SVG рядом."),
         )),
         _category("openai", "OpenAI / GPT relay", "OpenAI проверяется на уровне поведения, протокола и fingerprints.", (
             ("openai-proof", "Можно криптографически доказать настоящий GPT?", "Нет, OpenAI responses не содержат аналога Claude thinking signature. Поэтому Clodex ищет protocol compliance, capability support и подозрительные usage-поля."),
@@ -72,10 +79,17 @@ _FAQ_DATA: dict[str, tuple[dict[str, object], ...]] = {
             ("fake-tactics", "How do relays fake models?", "For example, a relay may sell GPT while forwarding to Claude, sell Claude through a Bedrock-like layer without thinking signatures, or disable advanced features and return plain text only."),
             ("ask-who-are-you", "Can I just ask the model who it is?", "No. Identity answers are easy to spoof with a system prompt. Protocol fields, signatures, tool calls, and usage are more reliable."),
         )),
-        _category("claude", "Claude Relay", "Claude can be checked more deeply because of thinking signature.", (
-            ("thinking-signature", "What is thinking signature?", "It is an Anthropic server-side signature in a thinking response. A relay theoretically cannot generate it by itself, so missing or malformed signatures are a strong warning sign."),
-            ("claude-coverage", "What does the Claude detector check?", "Thinking signature, identity, behavior, knowledge, PDF, tool use, structured output, protocol, streaming consistency, message IDs, usage, and optional long context."),
-            ("claude-cost", "Does the check spend tokens?", "Yes. Clodex sends real requests to your relay. Cost is charged by your provider or relay, not by Clodex."),
+        _category("claude", "Claude Relay", "Claude is audited deepest via server-side thinking signatures (17 detectors).", (
+            ("thinking-signature", "What is a Claude thinking signature?", "It is a server-side cryptographic signature from Anthropic on Claude thinking blocks. A relay cannot forge it, so missing or malformed signatures are a strong warning sign."),
+            ("claude-coverage", "What does the Claude detector suite check?", "17 detectors: thinking signature, identity, behavior, knowledge, native PDF, tool use / structured output, protocol, stream parity, message IDs, usage + count_tokens, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, anti-cache reasoning, Pelican SVG benchmark, and optional long context up to 950k."),
+            ("claude-cost", "Does the check spend tokens?", "Yes. CLODEX Check sends live diagnostic requests to your endpoint. Token usage is billed by the tested provider, never by CLODEX Check."),
+        )),
+        _category("advanced", "Pelican SVG, Prompt Caching, Streaming & Compare", "Advanced authenticity, throughput, and side-by-side comparison probes.", (
+            ("pelican-svg", "What is the Pelican-on-a-bicycle SVG test?", "Simon Willison's visual benchmark asks the model to draw a pelican riding a bicycle in pure SVG in a single streamed call. Vector geometry, primitive richness, and visual quality make silent downgrades immediately obvious. Available as a dedicated tab on every model page and at /pelican."),
+            ("fake-stream", "How does CLODEX Check detect buffered fake streams and measure tok/s?", "Every streamed probe records chunk arrival timestamps (StreamSample). Live throughput tok/s is measured strictly over generation time after TTFT, and single-burst buffered proxies are flagged as buffered_burst."),
+            ("prompt-cache-check", "How is Prompt Caching verified?", "Two back-to-back calls with an identical >2,000-token prefix verify real cache_read_input_tokens > 0 (Claude) or cached_tokens > 0 (OpenAI). Zero cache reads signal stripped cache headers or cross-account rotation."),
+            ("system-injection-check", "What does the hidden system-prompt audit catch?", "A random canary rule verifies your system prompt reaches the model intact, while a bare 'hi' request detects hidden wrapper prompts inflating your billed input tokens."),
+            ("compare-providers", "How do I compare two AI API providers on /compare?", "Run checks on two endpoints (or two models) and paste their /r/{id} links into /compare to see score delta, TTFT, live tok/s, a detector-by-detector diff matrix, and both Pelican SVGs side by side."),
         )),
         _category("openai", "OpenAI / GPT Relay", "OpenAI is checked through behavior, protocol, and fingerprints.", (
             ("openai-proof", "Can Clodex cryptographically prove a GPT model?", "No. OpenAI responses do not include a Claude-like thinking signature. Clodex checks protocol compliance, capability support, and suspicious usage fields."),
@@ -105,10 +119,17 @@ _FAQ_DATA: dict[str, tuple[dict[str, object], ...]] = {
             ("fake-tactics", "relay 常见作假方式是什么?", "例如卖 GPT 但转发到 Claude；卖 Claude 但通过没有 thinking signature 的 Bedrock-like 层；或关闭高级能力只返回普通文本。"),
             ("ask-who-are-you", "直接问模型是谁可以吗?", "不可靠。身份回答很容易被 system prompt 伪造。协议字段、signature、tool calls 和 usage 更可靠。"),
         )),
-        _category("claude", "Claude relay", "Claude 因为 thinking signature 可以检测得更深。", (
-            ("thinking-signature", "thinking signature 是什么?", "它是 thinking response 中的 Anthropic 服务端签名。relay 理论上无法自己生成，因此缺失或形状异常是强警告信号。"),
-            ("claude-coverage", "Claude detector 检查什么?", "Thinking signature、identity、behavior、knowledge、PDF、tool use、structured output、protocol、stream consistency、message IDs、usage 和可选 long context。"),
-            ("claude-cost", "检测会消耗 token 吗?", "会。Clodex 会向你的 relay 发送真实请求，费用由你的 provider 或 relay 收取，不由 Clodex 收取。"),
+        _category("claude", "Claude relay", "Claude 具备服务端加密级 thinking signature，覆盖全部 17 项检测器。", (
+            ("thinking-signature", "thinking signature 是什么?", "它是 thinking response 中的 Anthropic 服务端加密签名。relay 理论上无法自己生成，因此缺失或形状异常是强警告信号。"),
+            ("claude-coverage", "Claude 检测套件检查什么?", "共 17 项：thinking signature、身份、行为特征、知识、原生 PDF、tool use / 结构化输出、协议规范、流式一致性、message IDs、usage 与 count_tokens、Prompt Caching 缓存、隐藏系统提示词审计、动态 PNG 视觉、防缓存推理、鹈鹕骑车 SVG 与可选 950k 长上下文。"),
+            ("claude-cost", "检测会消耗 token 吗?", "会。CLODEX Check 会向你的接口发送真实探针请求，费用由被测接口计费，CLODEX Check 本身完全免费。"),
+        )),
+        _category("advanced", "鹈鹕测试、缓存、流式测速与并排对比", "进阶真伪审计、真实 tok/s 测速与双报告对比功能说明。", (
+            ("pelican-svg", "什么是「鹈鹕骑自行车 SVG」测试？", "这是 Simon Willison 的经典视觉基准：让模型在单次流式请求中用纯 SVG 绘制一只骑自行车的鹈鹕。图形细节与矢量结构让廉价模型替换一目了然。每个模型页面与 /pelican 均有独立标签页。"),
+            ("fake-stream", "如何识别「假流式」并测量真实 tok/s？", "流式探针会记录每个分片到达时间（StreamSample），在剔除首字延迟 TTFT 后计算真实生成速度；若代理先整包缓冲再一次性吐出，会被标记为 buffered_burst。"),
+            ("prompt-cache-check", "如何验证 Prompt Caching 是否真实生效？", "连续两次发送超过 2000 token 的相同前缀，校验是否真实返回 cache_read_input_tokens > 0（Claude）或 cached_tokens > 0（OpenAI）。"),
+            ("system-injection-check", "系统提示词审计能查出什么问题？", "一方面通过随机金丝雀指令确认你的 system prompt 未被覆盖；另一方面通过纯 'hi' 请求排查后台注入隐藏提示词导致的额外计费。"),
+            ("compare-providers", "如何在 /compare 并排对比两家中转站？", "分别完成两次检测后，把两份 /r/{id} 链接粘贴到 /compare，即可并排查看总分差值、TTFT、tok/s、逐项检测差异以及两张鹈鹕 SVG。"),
         )),
         _category("openai", "OpenAI / GPT relay", "OpenAI 通过行为、协议和指纹检测。", (
             ("openai-proof", "能加密级证明 GPT 真伪吗?", "不能。OpenAI 响应没有 Claude-like thinking signature。Clodex 检查 protocol compliance、capability support 和可疑 usage 字段。"),

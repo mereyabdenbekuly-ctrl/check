@@ -1,11 +1,40 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Сравнение отчётов AI API (Side-by-Side) · CLODEX Check', 'Compare AI API Reports (Side-by-Side) · CLODEX Check', 'AI API 检测报告对比 · CLODEX Check') }}{% endblock %}
+{% block title %}{{ lt(locale, 'Сравнение AI API провайдеров (Side-by-Side) · CLODEX Check', 'Compare AI API Providers Side-by-Side · CLODEX Check', 'AI API 中转站并排对比 · CLODEX Check') }}{% endblock %}
 {% block description %}{{ lt(locale, 'Сравните два AI API-провайдера или две модели бок о бок: итоговый скор, TTFT, реальная скорость tok/s, матрица до 17 детекторов и два Пеликана SVG рядом.', 'Compare two AI API providers or models side by side: total score, TTFT, live streaming tok/s, up to 17 detector diffs, and side-by-side Pelican SVGs.', '并排对比两个 AI API 中转站或模型：总分、首字延迟 TTFT、真实流式 tok/s、多达 17 项检测差异及两张鹈鹕骑车 SVG 对比。') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/compare{% endblock %}
-{% block og_url %}https://check.clodex.xyz/compare{% endblock %}
+{% block robots %}{% if raw_a or raw_b %}noindex,follow{% else %}index,follow,max-image-preview:large,max-snippet:-1{% endif %}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+        {"@type": "ListItem", "position": 2, "name": "{{ lt(locale, 'Сравнение отчётов', 'Compare Reports', '报告对比') }}", "item": "{{ seo_canonical }}"}
+      ]
+    },
+    {
+      "@type": "WebApplication",
+      "name": "CLODEX Check — Side-by-Side Compare",
+      "url": "{{ seo_canonical }}",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+    }
+  ]
+}
+</script>
+{% endblock %}
 
 {% block content %}
+<nav class="breadcrumb" aria-label="{{ lt(locale, 'Навигация', 'Breadcrumb', '面包屑') }}">
+  <a href="{{ with_lang('/', locale) }}">{{ lt(locale, 'Главная', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">{{ lt(locale, 'Сравнение отчётов', 'Compare', '报告对比') }}</span>
+</nav>
 <section class="hero compare-hero">
   <div class="eyebrow eyebrow-success">
     <span class="eyebrow-dot" aria-hidden="true"></span>

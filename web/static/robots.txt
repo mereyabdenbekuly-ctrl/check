@@ -1,13 +1,18 @@
-# Clodex robots.txt — SEO + AI crawler policy
-# See SEO_AI_GEO_PLAN §3.1.A
-
+# CLODEX Check robots.txt — SEO + Yandex + AI GEO crawler policy
 User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /healthz
 
-# Explicit allow for AI crawlers — required for GEO (Generative Engine
-# Optimization). Do NOT remove these.
+# Yandex-specific directives: merge query tabs & compare params to canonical URLs
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+Disallow: /healthz
+Clean-param: tab&a&b /
+Host: https://check.clodex.xyz
+
+# Explicit allow for AI search & research crawlers (GEO)
 User-agent: GPTBot
 Allow: /
 

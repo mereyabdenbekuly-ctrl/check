@@ -1,11 +1,60 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Пеликан-тест (SVG) для Claude, GPT и Gemini · CLODEX Check', 'Pelican on a Bicycle SVG Benchmark for Claude, GPT & Gemini · CLODEX Check', '鹈鹕骑自行车 SVG 视觉测试（Claude / GPT / Gemini）· CLODEX Check') }}{% endblock %}
-{% block description %}{{ lt(locale, 'Быстрый визуальный Пеликан-тест (SVG) Симона Уиллисона для любого AI API (Claude, OpenAI GPT, Gemini): 1 потоковый запрос за 10–20 сек, живой рендер SVG, TTFT, реальный tok/s и детектор фейк-стрима.', 'Fast standalone Simon Willison Pelican-on-a-bicycle SVG benchmark for Claude, OpenAI GPT, and Gemini APIs: single streamed call in 10–20s, live SVG render, TTFT, true tok/s, and fake-stream check.', '独立的 Simon Willison「鹈鹕骑自行车」SVG 视觉测试，支持 Claude / OpenAI / Gemini：单次流式请求 10–20 秒出图，实时渲染 SVG、测量 TTFT 与真实 tok/s。') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/pelican{% endblock %}
-{% block og_url %}https://check.clodex.xyz/pelican{% endblock %}
+{% block title %}{{ lt(locale, 'Пеликан-тест (SVG) для ИИ-моделей: Claude, GPT, Gemini | CLODEX Check', 'Pelican on a Bicycle SVG Benchmark (Claude, GPT, Gemini) | CLODEX Check', 'AI 模型鹈鹕骑自行车 SVG 测试（Claude / GPT / Gemini）| CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, 'Онлайн Пеликан-тест Симона Уиллисона (пеликан на велосипеде в SVG) для любого AI API — Claude, OpenAI GPT и Gemini. 1 потоковый запрос за 10–20 сек, живой SVG, TTFT, реальный tok/s и сравнение A vs B.', 'Run Simon Willison’s Pelican-on-a-bicycle SVG visual benchmark online for Claude, OpenAI GPT, and Gemini APIs. 1 streamed call in 10–20s, live sanitized SVG, TTFT, true tok/s, and side-by-side compare.', '在线运行 Simon Willison「鹈鹕骑自行车」SVG 视觉测试，支持 Claude / OpenAI / Gemini：单次流式请求 10–20 秒出图，实时渲染清洗后 SVG，测量 TTFT 与真实 tok/s。') }}{% endblock %}
+{% block keywords %}{{ lt(locale, 'пеликан тест, пеликан на велосипеде нейросеть, пеликан тест SVG, тест Симона Уиллисона, pelican on a bicycle SVG, проверка ИИ моделей, CLODEX Check', 'pelican on a bicycle SVG benchmark, Simon Willison pelican test, LLM SVG benchmark, Claude GPT Gemini pelican test, live tok/s stream test, CLODEX Check', '鹈鹕骑自行车 SVG 测试, Simon Willison 鹈鹕测试, AI 模型视觉基准, CLODEX Check') }}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+        {"@type": "ListItem", "position": 2, "name": "{{ lt(locale, 'Пеликан-тест (SVG)', 'Pelican SVG Test', '鹈鹕骑车测试') }}", "item": "{{ seo_canonical }}"}
+      ]
+    },
+    {
+      "@type": "WebApplication",
+      "name": "CLODEX Check — Pelican SVG Benchmark",
+      "url": "{{ seo_canonical }}",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Что такое Пеликан-тест на велосипеде (SVG)?', 'What is the Pelican-on-a-bicycle SVG benchmark?', '什么是「鹈鹕骑自行车 SVG」测试？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Это известный тест Симона Уиллисона для проверки пространственного мышления LLM: модель должна написать чистый SVG-код пеликана на велосипеде без генераторов картинок. Слабые и подменённые модели выдают примитивные фигуры, а топовые — детализированный вектор.', 'Created by Simon Willison to test LLM spatial reasoning: the model writes pure SVG code of a pelican riding a bicycle without image generators. Weak or substituted models output crude shapes while frontier models render cohesive vectors.', '由 Simon Willison 提出的经典空间推理测试：要求模型直接输出纯 SVG 代码绘制骑自行车的鹈鹕。廉价换模往往只能画出简陋线条，旗舰模型则会生成结构完整的矢量图。') }}"}
+        },
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Как Пеликан-тест помогает поймать подмену модели и фейк-стрим?', 'How does the Pelican test catch model substitution and fake streaming?', '鹈鹕测试如何帮助识破换模与假流式？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Генерация SVG занимает 400–1200 выходных токенов в потоке (SSE): вы одновременно видите глазами реальный интеллект модели, получаете точный замер скорости tok/s и видите, отдаёт ли провайдер настоящий стрим или буферизует ответ.', 'Generating SVG streams 400–1,200 output tokens over SSE: you visually verify model intelligence, measure accurate live tok/s throughput, and catch proxies that buffer the entire output before sending it in one burst.', '生成 SVG 通常流式输出 400–1200 个 token：你既能用肉眼直观评估模型智力，又能实测真实 tok/s 速度并识破先缓存再整包吐出的假流式代理。') }}"}
+        },
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Безопасно ли смотреть и скачивать SVG от неизвестной модели?', 'Is it safe to preview and download model-generated SVGs?', '预览和下载未知模型生成的 SVG 安全吗？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Да. CLODEX Check строго вырезает <script>, <foreignObject>, on*-обработчики и DOCTYPE, рендерит SVG внутри изолированного тега <img> и отдаёт файл при скачивании с заголовком Content-Security-Policy: sandbox.', 'Yes. CLODEX Check strictly strips <script>, <foreignObject>, on* event handlers, and DOCTYPE, renders the SVG inside an isolated <img>, and serves downloads with Content-Security-Policy: sandbox.', '安全。CLODEX Check 会严格清除 <script>、<foreignObject>、事件属性与 DOCTYPE，在隔离 <img> 容器中渲染，下载响应附带 Content-Security-Policy: sandbox。') }}"}
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
 
 {% block content %}
+<nav class="breadcrumb" aria-label="{{ lt(locale, 'Навигация', 'Breadcrumb', '面包屑') }}">
+  <a href="{{ with_lang('/', locale) }}">{{ lt(locale, 'Главная', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">{{ lt(locale, 'Пеликан-тест (SVG)', 'Pelican SVG Test', '鹈鹕测试') }}</span>
+</nav>
 <section class="hero">
   <div class="eyebrow eyebrow-success">
     <span class="eyebrow-dot" aria-hidden="true"></span>
@@ -186,6 +235,23 @@
     <h3>{{ lt(locale, 'Сравнение пеликанов', 'Compare two pelicans', '两张鹈鹕并排对比') }}</h3>
     <p>{{ lt(locale, 'Каждый запуск даёт постоянную ссылку /r/{id} — вставьте две ссылки в /compare и сравните двух провайдеров или две модели рядом.', 'Every run produces a permanent /r/{id} link — paste two into /compare to inspect two providers or models side by side.', '每次运行生成永久链接 /r/{id}，粘贴到 /compare 即可并排对比两张鹈鹕 SVG。') }}</p>
   </div>
+</section>
+
+<section class="faq" id="faq">
+  <h2>{{ lt(locale, 'Частые вопросы о Пеликан-тесте', 'Pelican Benchmark FAQ', '鹈鹕测试常见问题') }}</h2>
+  <details class="faq-item" open>
+    <summary>{{ lt(locale, 'Что такое Пеликан-тест на велосипеде (SVG)?', 'What is the Pelican-on-a-bicycle SVG benchmark?', '什么是「鹈鹕骑自行车 SVG」测试？') }}</summary>
+    <div class="faq-body"><p>{{ lt(locale, 'Это известный визуальный бенчмарк Симона Уиллисона для проверки пространственного мышления LLM: модель должна написать чистый SVG-код пеликана на велосипеде без генераторов картинок. Слабые и подменённые модели выдают примитивные фигуры, а оригинальные флагманы — детализированную сцену.', 'Created by Simon Willison to test LLM spatial reasoning: the model writes pure SVG code of a pelican riding a bicycle without image generators. Weak or substituted models output crude shapes while frontier models render cohesive scenes.', '由 Simon Willison 提出的经典空间推理测试：模型需直接输出纯 SVG 代码绘制骑自行车的鹈鹕。廉价换模通常线条粗糙，原版旗舰模型则会生成结构完整的矢量图。') }}</p></div>
+  </details>
+  <details class="faq-item">
+    <summary>{{ lt(locale, 'Как Пеликан-тест ловит подмену модели и фейк-стрим?', 'How does the Pelican test catch model substitution and fake streaming?', '鹈鹕测试如何识破换模与假流式？') }}</summary>
+    <div class="faq-body"><p>{{ lt(locale, 'Генерация SVG занимает 400–1200 выходных токенов в потоке (SSE): вы одновременно видите глазами реальный уровень модели, получаете точный замер скорости tok/s и видите, отдаёт ли провайдер настоящий стрим или буферизует ответ.', 'Generating SVG streams 400–1,200 output tokens over SSE: you visually verify model quality, measure accurate live tok/s throughput, and catch proxies that buffer the output before emitting it in one burst.', '生成 SVG 流式输出 400–1200 token：既能直观判断模型水平，又能实测真实 tok/s 速度并识破先缓冲再一次性吐出的假流式代理。') }}</p></div>
+  </details>
+  <details class="faq-item">
+    <summary>{{ lt(locale, 'Безопасно ли смотреть и скачивать SVG?', 'Is it safe to preview and download generated SVGs?', '预览和下载模型生成的 SVG 安全吗？') }}</summary>
+    <div class="faq-body"><p>{{ lt(locale, 'Да. CLODEX Check вырезает <script>, <foreignObject>, on*-обработчики и DOCTYPE, рендерит SVG внутри изолированного тега <img> и отдаёт файл с заголовком Content-Security-Policy: sandbox.', 'Yes. CLODEX Check strictly strips <script>, <foreignObject>, on* event handlers, and DOCTYPE, renders the SVG inside an isolated <img>, and serves downloads with Content-Security-Policy: sandbox.', '安全。CLODEX Check 会严格清洗危险标签与脚本，在隔离 <img> 中展示，下载附带 Content-Security-Policy: sandbox。') }}</p></div>
+  </details>
+  <p class="faq-more">{{ lt(locale, 'Нужна полная проверка (17 детекторов + thinking signature)?', 'Need the full authenticity suite (17 detectors + thinking signature)?', '需要完整 17 项深度验真？') }} <a href="{{ with_lang('/claude', locale) }}">Claude →</a> · <a href="{{ with_lang('/openai', locale) }}">OpenAI →</a> · <a href="{{ with_lang('/gemini', locale) }}">Gemini →</a></p>
 </section>
 
 <script>

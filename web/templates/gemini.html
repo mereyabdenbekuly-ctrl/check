@@ -1,11 +1,55 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Проверка Gemini API | CLODEX Check', 'Gemini API Check | CLODEX Check', 'Gemini API 检测 | CLODEX Check') }}{% endblock %}
-{% block description %}{{ lt(locale, 'Проверка Gemini API (Gemini 4 / 3.8 / 3 / 2.5) через OpenAI-совместимый эндпоинт: протокол, function calling, JSON Schema, стриминг и usage.', 'Check Gemini API relays (Gemini 4 / 3.8 / 3 / 2.5) via the OpenAI-compatible path: protocol, function calling, JSON Schema, streaming parity, and usage.', '通过 OpenAI 兼容接口检测 Gemini API（Gemini 4 / 3.8 / 3 / 2.5）：协议、function calling、JSON Schema、流式一致性和 usage。') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/gemini{% endblock %}
-{% block og_url %}https://check.clodex.xyz/gemini{% endblock %}
+{% block title %}{{ lt(locale, 'Проверка Gemini API (12 тестов + Пеликан SVG) | CLODEX Check', 'Gemini API Authenticity Check (12 Detectors) | CLODEX Check', 'Gemini API 真伪检测（12 项检测 + 鹈鹕 SVG）| CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, '12 проверок Gemini API (Gemini 4 / 3.8 / 3 / 2.5): SentencePiece токенизатор, зрение PNG, анти-кэш, system-инъекции, Пеликан SVG, function calling, JSON Schema и реальный tok/s.', '12 Gemini API checks (Gemini 4 / 3.8 / 3 / 2.5) via OpenAI-compatible path: SentencePiece tokenizer probe, dynamic PNG vision, anti-cache, system-prompt audit, Pelican SVG, function calling, JSON Schema, and live tok/s.', '12 项 Gemini API 检测（Gemini 4 / 3.8 / 3 / 2.5）：SentencePiece 分词器、动态 PNG 视觉、防缓存推理、系统提示词审计、鹈鹕 SVG、function calling、JSON Schema 与真实流式 tok/s。') }}{% endblock %}
+{% block keywords %}{{ lt(locale, 'проверка Gemini API, проверить Google Gemini, Gemini relay тест, пеликан тест Gemini, SentencePiece токенизатор, CLODEX Check', 'Gemini API checker, Google Gemini proxy audit, Gemini OpenAI-compatible test, Pelican SVG Gemini, CLODEX Check', 'Gemini API 检测, Google Gemini 中转检测, 鹈鹕测试 Gemini, CLODEX Check') }}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+        {"@type": "ListItem", "position": 2, "name": "Gemini API", "item": "{{ seo_canonical }}"}
+      ]
+    },
+    {
+      "@type": "WebApplication",
+      "name": "CLODEX Check — Gemini API",
+      "url": "{{ seo_canonical }}",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Почему Gemini иногда возвращает model_not_found?', 'Why does Gemini sometimes return model_not_found?', '为什么 Gemini 有时会返回 model_not_found？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Провайдер может использовать другие алиасы (например, preview или префикс models/). После ввода ключа preflight автоматически подгрузит доступные модели.', 'Providers may expose different aliases (preview names or models/ prefixes). After entering your key, preflight automatically loads available models.', '不同中转站的 Gemini 命名可能不同（含 preview 或 models/ 前缀），填入密钥后预探测会自动加载可用列表。') }}"}
+        },
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Можно ли проверить официальный Google Gemini API?', 'Can I check official Google Gemini API?', '可以测 Google 官方 Gemini API 吗？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Да. Вставьте base_url https://generativelanguage.googleapis.com/v1beta/openai и ключ AIza... из Google AI Studio.', 'Yes. Use base_url https://generativelanguage.googleapis.com/v1beta/openai and an AIza... key from Google AI Studio.', '可以。base_url 填 https://generativelanguage.googleapis.com/v1beta/openai，API key 填 Google AI Studio 的 AIza... 密钥。') }}"}
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
 
 {% block content %}
+<nav class="breadcrumb" aria-label="{{ lt(locale, 'Навигация', 'Breadcrumb', '面包屑') }}">
+  <a href="{{ with_lang('/', locale) }}">{{ lt(locale, 'Главная', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Gemini API</span>
+</nav>
 <section class="hero">
   <div class="eyebrow">
     <span class="eyebrow-dot" aria-hidden="true"></span>

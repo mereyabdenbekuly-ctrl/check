@@ -1,11 +1,55 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Проверка Claude API · thinking signature | CLODEX Check', 'Claude API Check · thinking signature | CLODEX Check', 'Claude API 检测 · thinking signature | CLODEX Check') }}{% endblock %}
-{% block description %}{{ lt(locale, 'Проверка Claude API (Opus 5.5/4.8, Sonnet 5.5/4.6, Haiku 5.5/4.5) через криптографическую thinking signature, protocol shape, tool use, PDF, usage и stream. API-ключ не сохраняется.', 'Verify Claude API relays (Opus 5.5/4.8, Sonnet 5.5/4.6, Haiku 5.5/4.5) via cryptographic thinking signature, protocol shape, tool use, PDF, usage, and streaming. API keys are never persisted.', '检测 Claude API（Opus 5.5/4.8、Sonnet 5.5/4.6、Haiku 5.5/4.5）：thinking signature、协议规范、tool use、PDF、usage 与 stream 一致性。') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/claude{% endblock %}
-{% block og_url %}https://check.clodex.xyz/claude{% endblock %}
+{% block title %}{{ lt(locale, 'Проверка Claude API (Opus / Sonnet / Haiku) · thinking signature | CLODEX Check', 'Claude API Authenticity Check · Anthropic Thinking Signature | CLODEX Check', 'Claude API 真伪检测 · Anthropic thinking signature | CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, '17 проверок Claude API (Opus 5.5/4.8, Sonnet 5.5/4.6, Haiku 5.5/4.5): криптоподпись Anthropic thinking signature, Пеликан-тест SVG, Prompt Caching, system-инъекции, PNG Vision, PDF и реальный tok/s.', '17 Claude API authenticity checks (Opus 5.5/4.8, Sonnet 5.5/4.6, Haiku 5.5/4.5): Anthropic thinking signature, Pelican SVG test, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, PDF, and live tok/s.', '17 项 Claude API 真伪检测（Opus 5.5/4.8、Sonnet 5.5/4.6、Haiku 5.5/4.5）：Anthropic thinking signature、鹈鹕 SVG、Prompt Caching、系统提示词审计、动态 PNG 视觉、PDF 与真实流式 tok/s。') }}{% endblock %}
+{% block keywords %}{{ lt(locale, 'проверка Claude API, проверить Claude Opus, thinking signature Anthropic, Claude relay проверка, пеликан тест Claude, prompt caching Claude, CLODEX Check', 'Claude API checker, verify Anthropic thinking signature, Claude proxy authenticity test, Claude Opus Sonnet relay audit, Pelican SVG Claude, CLODEX Check', 'Claude API 检测, Anthropic thinking signature 验证, Claude 中转站验真, 鹈鹕测试 Claude, CLODEX Check') }}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+        {"@type": "ListItem", "position": 2, "name": "Claude API", "item": "{{ seo_canonical }}"}
+      ]
+    },
+    {
+      "@type": "WebApplication",
+      "name": "CLODEX Check — Claude API",
+      "url": "{{ seo_canonical }}",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Что такое thinking signature?', 'What is a thinking signature?', 'thinking signature 是什么？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Это криптографическая печать серверов Anthropic на блоке размышлений Claude. Сторонний релей не может сгенерировать её самостоятельно.', 'It is a cryptographic stamp from Anthropic servers on Claude thinking blocks. A third-party relay cannot generate it on its own.', '它像 Anthropic 给 Claude thinking 块盖的服务端印章，中转站理论上无法伪造。') }}"}
+        },
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'CLODEX Check сохраняет мой API-ключ?', 'Does CLODEX Check store my API key?', 'CLODEX Check 会保存我的 API key 吗？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Нет. Ключ используется только для отправки проверочных запросов и сразу удаляется из памяти. В отчёте остаётся только маска.', 'No. The key is used only while running the check and discarded immediately afterward. Only a masked version appears in reports.', '不会。key 仅用于发送检测请求，完成后立即从内存移除，报告仅保留掩码。') }}"}
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
 
 {% block content %}
+<nav class="breadcrumb" aria-label="{{ lt(locale, 'Навигация', 'Breadcrumb', '面包屑') }}">
+  <a href="{{ with_lang('/', locale) }}">{{ lt(locale, 'Главная', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">Claude API</span>
+</nav>
 <section class="hero">
   <div class="eyebrow eyebrow-success">
     <span class="eyebrow-dot" aria-hidden="true"></span>

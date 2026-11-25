@@ -1,11 +1,55 @@
 {% extends "base.html" %}
 
-{% block title %}{{ lt(locale, 'Проверка OpenAI / GPT API | CLODEX Check', 'OpenAI / GPT API Check | CLODEX Check', 'OpenAI / GPT API 检测 | CLODEX Check') }}{% endblock %}
-{% block description %}{{ lt(locale, 'Проверка OpenAI-совместимых эндпоинтов (GPT-6.2 / 6 / 5.6 / 5.5 / 5.4): Chat Completions, function calling, structured output, stream и usage-отпечатки.', 'Audit OpenAI-compatible endpoints (GPT-6.2 / 6 / 5.6 / 5.5 / 5.4): Chat Completions, function calling, structured output, streaming parity, and usage fingerprints.', '检测 OpenAI 兼容接口（GPT-6.2 / 6 / 5.6 / 5.5 / 5.4）：Chat Completions、function calling、structured output、stream 一致性与 usage 指纹。') }}{% endblock %}
-{% block canonical %}https://check.clodex.xyz/openai{% endblock %}
-{% block og_url %}https://check.clodex.xyz/openai{% endblock %}
+{% block title %}{{ lt(locale, 'Проверка OpenAI / GPT API (14 тестов + Пеликан SVG) | CLODEX Check', 'OpenAI / GPT API Authenticity Check (14 Detectors) | CLODEX Check', 'OpenAI / GPT API 真伪检测（14 项检测 + 鹈鹕 SVG）| CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, '14 проверок OpenAI / GPT API (GPT-6.2/6/5.5/5.4): проба токенизатора o200k_base, Prompt Caching, system-инъекции, PNG Vision, Пеликан SVG, strict JSON Schema, tools, реальный tok/s и отпечатки usage.', '14 OpenAI / GPT API checks (GPT-6.2/6/5.5/5.4): o200k_base tokenizer probe, Prompt Caching, hidden system-prompt audit, dynamic PNG vision, Pelican SVG, strict JSON Schema, tools, live tok/s, and usage fingerprints.', '14 项 OpenAI / GPT API 检测（GPT-6.2/6/5.5/5.4）：o200k_base 分词器、Prompt Caching、系统提示词审计、动态 PNG 视觉、鹈鹕 SVG、strict JSON、tools、真实 tok/s 与 usage 指纹。') }}{% endblock %}
+{% block keywords %}{{ lt(locale, 'проверка OpenAI API, проверить GPT API, тест прокси GPT, o200k_base токенизатор, prompt caching OpenAI, пеликан тест GPT, CLODEX Check', 'OpenAI API checker, GPT proxy authenticity audit, o200k_base tokenizer probe, strict json_schema test, OpenAI prompt caching check, CLODEX Check', 'OpenAI API 检测, GPT 中转站验真, o200k_base 分词器检测, strict json_schema 测试, CLODEX Check') }}{% endblock %}
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": "CLODEX Check", "item": "https://check.clodex.xyz/"},
+        {"@type": "ListItem", "position": 2, "name": "OpenAI / GPT API", "item": "{{ seo_canonical }}"}
+      ]
+    },
+    {
+      "@type": "WebApplication",
+      "name": "CLODEX Check — OpenAI / GPT API",
+      "url": "{{ seo_canonical }}",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "isAccessibleForFree": true,
+      "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Можно ли доказать подлинность GPT криптографически?', 'Can this prove a GPT model cryptographically?', '能加密级证明 GPT 模型真伪吗？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Нет — OpenAI не включает серверную подпись в ответы. Но проверка выявляет большинство подмен по протоколу, токенизатору o200k_base, strict JSON, tool calls и полям usage.', 'Not cryptographically — OpenAI does not sign responses. However, protocol, o200k_base tokenizer, strict JSON, tool calling, and usage checks catch most substitutions.', '无法做到加密级证明，但协议字段、o200k_base 分词器、strict JSON、工具调用和 usage 指纹能识别绝大多数换芯。') }}"}
+        },
+        {
+          "@type": "Question",
+          "name": "{{ lt(locale, 'Почему при 75+ баллах вердикт всё равно может быть «Есть риски»?', 'Why can a 75+ score still get an \"At risk\" verdict?', '为什么 75 分以上仍可能判定为“存在风险”？') }}",
+          "acceptedAnswer": {"@type": "Answer", "text": "{{ lt(locale, 'Критическая проблема (например, следы чужого бэкенда в usage) автоматически ограничивает итоговый вердикт, даже если остальные тесты прошли.', 'A critical finding (such as cross-vendor backend fingerprints in usage) automatically caps the verdict even when other checks pass.', '只要出现 critical 级问题（例如 usage 泄漏异源后端），整体判定就会自动降级。') }}"}
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
 
 {% block content %}
+<nav class="breadcrumb" aria-label="{{ lt(locale, 'Навигация', 'Breadcrumb', '面包屑') }}">
+  <a href="{{ with_lang('/', locale) }}">{{ lt(locale, 'Главная', 'Home', '首页') }}</a>
+  <span class="breadcrumb-sep">›</span>
+  <span class="breadcrumb-current">OpenAI / GPT</span>
+</nav>
 <section class="hero">
   <div class="eyebrow">
     <span class="eyebrow-dot" aria-hidden="true"></span>
