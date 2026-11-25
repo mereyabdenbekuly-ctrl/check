@@ -147,25 +147,38 @@
       <p class="hint">{{ lt(locale, 'API-ключ живёт только в RAM во время запроса и никогда не пишется на диск или в отчёт.', 'API key lives only in RAM during the call and is never saved to disk or reports.', 'API key 仅在请求期间存于内存，永不写入磁盘或报告。') }}</p>
     </div>
 
-    <div class="field">
-      <label for="model">{{ lt(locale, 'Целевая модель', 'Target model', '目标模型') }}</label>
-      <div class="combo">
-        <input
-          type="text"
-          id="model"
-          name="model"
-          required
-          value="{{ 'claude-sonnet-5-5' if initial_protocol == 'anthropic' else ('gpt-6.2-sol' if initial_protocol == 'openai' else 'gemini-4-neon') }}"
-          autocomplete="off"
-          maxlength="200"
-        />
-        <ul class="combo-list" id="model-list" hidden>
-          {% for m in models_by_protocol[initial_protocol] %}
-          <li class="combo-item" data-value="{{ m }}">{{ m }}</li>
-          {% endfor %}
-        </ul>
+    <div class="field-row">
+      <div class="field">
+        <label for="model">{{ lt(locale, 'Целевая модель', 'Target model', '目标模型') }}</label>
+        <div class="combo">
+          <input
+            type="text"
+            id="model"
+            name="model"
+            required
+            value="{{ 'claude-sonnet-5-5' if initial_protocol == 'anthropic' else ('gpt-6.2-sol' if initial_protocol == 'openai' else 'gemini-4-neon') }}"
+            autocomplete="off"
+            maxlength="200"
+          />
+          <ul class="combo-list" id="model-list" hidden>
+            {% for m in models_by_protocol[initial_protocol] %}
+            <li class="combo-item" data-value="{{ m }}">{{ m }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <p class="hint">{{ lt(locale, 'Выберите модель из списка или введите любое имя модели. После ввода ключа список подгрузится с вашего эндпоинта.', 'Pick a model or type any model ID. Models auto-load from your endpoint after entering your key.', '选择或输入任意模型名；填入密钥后将自动探测接口可用模型。') }}</p>
       </div>
-      <p class="hint">{{ lt(locale, 'Выберите модель из списка или введите любое имя модели. После ввода ключа список подгрузится с вашего эндпоинта.', 'Pick a model or type any model ID. Models auto-load from your endpoint after entering your key.', '选择或输入任意模型名；填入密钥后将自动探测接口可用模型。') }}</p>
+      <div class="field">
+        <label for="pelican_reasoning_effort">{{ lt(locale, 'Уровень размышлений (Reasoning)', 'Reasoning effort', '推理强度 (Reasoning)') }}</label>
+        <select id="pelican_reasoning_effort" name="reasoning_effort">
+          <option value="auto" selected>{{ lt(locale, 'Авто (high для GPT-6/5/o-серии)', 'Auto (high for GPT-6/5/o-series)', '自动（GPT-6/5/o 系列默认 high）') }}</option>
+          <option value="high">{{ lt(locale, 'High (максимальное качество SVG)', 'High (best SVG geometry)', 'High（最高 SVG 几何质量）') }}</option>
+          <option value="medium">{{ lt(locale, 'Medium (баланс)', 'Medium (balanced)', 'Medium（均衡）') }}</option>
+          <option value="low">{{ lt(locale, 'Low (быстрее)', 'Low (faster)', 'Low（更快）') }}</option>
+          <option value="none">{{ lt(locale, 'По умолчанию релея (не передавать)', 'Relay default (omit)', '跟随接口默认（不传）') }}</option>
+        </select>
+        <p class="hint">{{ lt(locale, 'Reasoning-модели (например gpt-6.2-sol) без reasoning_effort часто отвечают на минимальном уровне. High даёт максимальную детализацию.', 'Reasoning models (e.g. gpt-6.2-sol) often default to low reasoning if omitted. High gives full geometric planning.', '推理模型（如 gpt-6.2-sol）不传 reasoning_effort 时常回落到 low，选 High 可获得完整几何规划。') }}</p>
+      </div>
     </div>
 
     <button type="submit" id="submit-btn" class="btn btn-primary btn-submit">

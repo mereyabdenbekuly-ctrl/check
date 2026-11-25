@@ -125,6 +125,16 @@
           <option value="full" selected>{{ lt(locale, 'Полная (~80 сек, все 13 проверок + Пеликан SVG)', 'Full (~80s, all 13 checks + Pelican SVG)', '完整 (~80 秒, 全部 13 项 + 鹈鹕 SVG)') }}</option>
         </select>
       </div>
+      <div class="field" data-pelican-only="true" hidden>
+        <label for="pelican_reasoning_effort">{{ lt(locale, 'Уровень размышлений (Reasoning)', 'Reasoning effort', '推理强度 (Reasoning)') }}</label>
+        <select id="pelican_reasoning_effort" name="reasoning_effort">
+          <option value="auto" selected>{{ lt(locale, 'Авто (high для GPT-6/5/o-серии)', 'Auto (high for GPT-6/5/o-series)', '自动（GPT-6/5/o 系列默认 high）') }}</option>
+          <option value="high">{{ lt(locale, 'High (максимальное качество SVG)', 'High (best SVG geometry)', 'High（最高 SVG 几何质量）') }}</option>
+          <option value="medium">{{ lt(locale, 'Medium (баланс)', 'Medium (balanced)', 'Medium（均衡）') }}</option>
+          <option value="low">{{ lt(locale, 'Low (быстрее)', 'Low (faster)', 'Low（更快）') }}</option>
+          <option value="none">{{ lt(locale, 'По умолчанию релея (не передавать)', 'Relay default (omit)', '跟随接口默认（不传）') }}</option>
+        </select>
+      </div>
     </div>
 
     <div class="pelican-tab-note" data-pelican-only="true" hidden>

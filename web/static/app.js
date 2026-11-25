@@ -665,6 +665,10 @@
       fd.set('base_url', (document.getElementById('base_url') || {}).value || '');
       fd.set('api_key', (document.getElementById('api_key') || {}).value || '');
       fd.set('model', (document.getElementById('model') || {}).value || '');
+      const effortEl = document.getElementById('pelican_reasoning_effort');
+      if (effortEl && effortEl.value) {
+        fd.set('reasoning_effort', effortEl.value);
+      }
       try {
         const r = await fetch('/api/pelican', {method: 'POST', body: fd});
         const j = await r.json().catch(() => ({detail: 'request failed'}));

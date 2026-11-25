@@ -14,14 +14,17 @@ from typing import Any
 
 
 PELICAN_PROMPT = (
-    "Generate an SVG of a pelican riding a bicycle. "
+    "Generate a detailed, well-proportioned SVG illustration of a pelican riding a bicycle. "
     "Return ONLY valid standalone SVG markup starting with <svg and ending with </svg>, "
-    'with a clear viewBox="0 0 400 300" and rich colorful vector shapes '
-    "(wheels, bicycle frame, pedals, handlebars, pelican body, wings, and large beak pouch). "
+    'using viewBox="0 0 800 600". '
+    "Include clean side-profile geometry: two spoked bicycle wheels touching the ground, "
+    "a proper diamond frame, seat, chainring, pedals, handlebars, and a recognizable pelican "
+    "seated on the saddle with webbed feet on the pedals, wings reaching the handlebars, "
+    "distinct feathers, eye, and a large colorful beak pouch, plus a scenic background. "
     "Do not include any explanation or markdown outside the SVG."
 )
 
-MAX_SVG_BYTES = 48_000
+MAX_SVG_BYTES = 96_000
 
 _SVG_NS = "http://www.w3.org/2000/svg"
 

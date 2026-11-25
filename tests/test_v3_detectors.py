@@ -286,3 +286,54 @@ def test_result_page_pelican_showcase_svg_download_and_jpg_rendering():
         assert len(jpg_bytes) > 15_000
     finally:
         jobs._JOBS.pop(job_id, None)
+
+
+@pytest.mark.asyncio
+async def test_openai_pelican_auto_reasoning_effort_and_fallback():
+    from relay_detector.protocols.openai.detectors.pelican_svg import (
+        MAX_COMPLETION_TOKENS as OAI_MAX,
+        PelicanSVGDetector as OpenAIPelican,
+        _resolve_openai_effort,
+    )
+    from relay_detector.protocols.anthropic.detectors.pelican_svg import (
+        MAX_TOKENS as ANT_MAX,
+    )
+    from relay_detector.protocols.gemini.detectors.pelican_svg import (
+        MAX_COMPLETION_TOKENS as GEM_MAX,
+    )
+
+    assert OAI_MAX == 16384
+    assert ANT_MAX == 16384
+    assert GEM_MAX == 16384
+
+    assert _resolve_openai_effort("gpt-6.2-sol", None) == "high"
+    assert _resolve_openai_effort("gpt-6.2-sol", "auto") == "high"
+    assert _resolve_openai_effort("gpt-6.2-sol", "medium") == "medium"
+    assert _resolve_openai_effort("gpt-6.2-sol", "none") is None
+    assert _resolve_openai_effort("gpt-6.2-sol-low", "auto") is None
+    assert _resolve_openai_effort("gpt-4o", "auto") is None
+
+    seen_bodies: list[dict] = []
+
+    class _FakeClient:
+        async def chat_completions_stream(self, **kwargs):
+            seen_bodies.append(dict(kwargs))
+            # Reject reasoning_effort on first two attempts to test graceful fallback.
+            if "reasoning_effort" in kwargs:
+                raise RuntimeError("unsupported parameter: reasoning_effort")
+            yield {"choices": [{"delta": {"content": RICH_PELICAN_SVG}}]}, 10.0
+
+    res = await OpenAIPelican(reasoning_effort="auto").run(_FakeClient(), "gpt-6.2-sol")
+    assert res.status == "pass"
+    assert seen_bodies[0].get("reasoning_effort") == "high"
+    assert seen_bodies[0].get("max_completion_tokens") == 16384
+    assert "reasoning_effort" not in seen_bodies[-1]
+    assert res.details["reasoning_effort"] == "default"
+
+
+def test_pelican_page_exposes_reasoning_effort_selector():
+    client = TestClient(app)
+    for path in ("/pelican", "/openai", "/claude", "/gemini"):
+        r = client.get(path)
+        assert r.status_code == 200
+        assert 'id="pelican_reasoning_effort"' in r.text

@@ -288,7 +288,7 @@ def test_pelican_tabs_on_all_model_pages_and_standalone_api(monkeypatch, tmp_pat
     score = pelican_eval.pop("score")
     status = pelican_eval.pop("status")
 
-    async def fake_exec(base_url, api_key, model, protocol, timeout_s=95.0):
+    async def fake_exec(base_url, api_key, model, protocol, reasoning_effort=None, timeout_s=150.0):
         return (
             {
                 "name": "pelican_svg",

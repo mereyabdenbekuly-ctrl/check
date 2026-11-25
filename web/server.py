@@ -734,6 +734,7 @@ async def api_pelican(
     base_url: str = Form(...),
     api_key: str = Form(...),
     model: str = Form(...),
+    reasoning_effort: str = Form("auto"),
 ) -> JSONResponse:
     """Run the standalone Pelican-on-a-bicycle SVG test (single streamed call)."""
     ip = _client_ip(request)
@@ -755,6 +756,9 @@ async def api_pelican(
     base_url = base_url.strip()
     api_key = api_key.strip()
     model = model.strip()
+    effort = (reasoning_effort or "auto").strip().lower()
+    if effort not in {"auto", "low", "medium", "high", "xhigh", "max", "none", "off", "default"}:
+        effort = "auto"
 
     if not base_url.startswith(("http://", "https://")):
         raise HTTPException(status_code=400, detail="base_url must start with http(s)://")
@@ -763,7 +767,13 @@ async def api_pelican(
     if not model or len(model) > 200:
         raise HTTPException(status_code=400, detail="model must be 1–200 chars")
 
-    job_id, report = await jobs.run_pelican(base_url, api_key, model, protocol=proto)
+    job_id, report = await jobs.run_pelican(
+        base_url,
+        api_key,
+        model,
+        protocol=proto,
+        reasoning_effort=effort,
+    )
     pelican = _pelican_preview(report) or {}
     pelican_public = {k: v for k, v in pelican.items() if k != "svg_raw"}
     # NOTE: never echo api_key back in the response

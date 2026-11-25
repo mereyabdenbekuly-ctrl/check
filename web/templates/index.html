@@ -118,6 +118,16 @@
           <option value="full" selected>{{ lt(locale, 'Полная (~80 сек, все 16 проверок + Пеликан SVG)', 'Full (~80s, all 16 checks + Pelican SVG)', '完整 (~80 秒, 全部 16 项 + 鹈鹕 SVG)') }}</option>
         </select>
       </div>
+      <div class="field" data-pelican-only="true" hidden>
+        <label for="pelican_reasoning_effort">{{ lt(locale, 'Уровень размышлений (Thinking)', 'Thinking effort', '思考强度 (Thinking)') }}</label>
+        <select id="pelican_reasoning_effort" name="reasoning_effort">
+          <option value="auto" selected>{{ lt(locale, 'Авто (стандарт Claude)', 'Auto (Claude default)', '自动（Claude 默认）') }}</option>
+          <option value="high">{{ lt(locale, 'High (adaptive thinking)', 'High (adaptive thinking)', 'High（自适应思考）') }}</option>
+          <option value="medium">{{ lt(locale, 'Medium (баланс)', 'Medium (balanced)', 'Medium（均衡）') }}</option>
+          <option value="low">{{ lt(locale, 'Low (быстрее)', 'Low (faster)', 'Low（更快）') }}</option>
+          <option value="none">{{ lt(locale, 'Выкл (без thinking)', 'Off (no thinking)', '关闭思考') }}</option>
+        </select>
+      </div>
     </div>
 
     <div class="pelican-tab-note" data-pelican-only="true" hidden>

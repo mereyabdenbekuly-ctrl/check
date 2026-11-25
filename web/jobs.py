@@ -593,7 +593,8 @@ async def _execute_pelican_detector(
     api_key: str,
     model: str,
     protocol: str,
-    timeout_s: float = 95.0,
+    reasoning_effort: str | None = None,
+    timeout_s: float = 150.0,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Run ONLY the streamed PelicanSVGDetector and capture live stream metrics."""
     started = time.perf_counter()
@@ -604,7 +605,7 @@ async def _execute_pelican_detector(
 
         async with make_client(base_url, api_key, timeout=timeout_s) as base_client:
             client = ThrottledOpenAIClient(base_client, max_concurrent=1)
-            res = await PelicanSVGDetector().run(client, model)
+            res = await PelicanSVGDetector(reasoning_effort=reasoning_effort).run(client, model)
             elapsed_ms = int((time.perf_counter() - started) * 1000)
             ttft_ms = min(client._ttft_samples_ms) if client._ttft_samples_ms else None
             tps, stream_analysis = summarize_stream_samples(client._stream_samples)
@@ -616,7 +617,7 @@ async def _execute_pelican_detector(
 
         async with make_client(base_url, api_key, timeout=timeout_s) as base_client:
             client = ThrottledGeminiClient(base_client, max_concurrent=1)
-            res = await PelicanSVGDetector().run(client, model)
+            res = await PelicanSVGDetector(reasoning_effort=reasoning_effort).run(client, model)
             elapsed_ms = int((time.perf_counter() - started) * 1000)
             ttft_ms = min(client._ttft_samples_ms) if client._ttft_samples_ms else None
             tps, stream_analysis = summarize_stream_samples(client._stream_samples)
@@ -628,7 +629,7 @@ async def _execute_pelican_detector(
 
         async with make_client(base_url, api_key, timeout=timeout_s) as base_client:
             client = ThrottledClient(base_client, max_concurrent=1)
-            res = await PelicanSVGDetector().run(client, model)
+            res = await PelicanSVGDetector(reasoning_effort=reasoning_effort).run(client, model)
             elapsed_ms = int((time.perf_counter() - started) * 1000)
             ttft_ms = min(client._ttft_samples_ms) if client._ttft_samples_ms else None
             tps, stream_analysis = summarize_stream_samples(client._stream_samples)
@@ -652,6 +653,7 @@ async def run_pelican(
     api_key: str,
     model: str,
     protocol: str = "anthropic",
+    reasoning_effort: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Run a standalone Pelican-on-a-bicycle SVG check and persist a shareable report.
 
@@ -659,7 +661,13 @@ async def run_pelican(
     """
     proto = protocol if protocol in {"anthropic", "openai", "gemini"} else "anthropic"
     async with _SEMA:
-        result_dict, perf = await _execute_pelican_detector(base_url, api_key, model, proto)
+        result_dict, perf = await _execute_pelican_detector(
+            base_url,
+            api_key,
+            model,
+            proto,
+            reasoning_effort=reasoning_effort,
+        )
 
     score = float(result_dict.get("score") or 0.0)
     status = str(result_dict.get("status") or "fail")
