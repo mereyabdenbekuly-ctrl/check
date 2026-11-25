@@ -293,6 +293,33 @@ def test_identity_brand_patterns_detect_chatgpt():
     assert "OpenAI" in hits
 
 
+def test_identity_detector_accepts_claude_self_id_without_company_name():
+    import asyncio
+    from relay_detector.detectors.identity import IdentityDetector
+
+    class _FakeClient:
+        def __init__(self, reply: str):
+            self.reply = reply
+
+        async def messages_create(self, **_kwargs):
+            return {}, {"content": [{"type": "text", "text": self.reply}]}, {}, 10
+
+    det = IdentityDetector()
+    res = asyncio.run(det.run(
+        _FakeClient("I'm Claude, an AI assistant. I don't know which company built me."),
+        "claude-sonnet-5-5",
+    ))
+    assert res.status == "pass"
+    assert res.score == 85.0
+
+    spoof = asyncio.run(det.run(
+        _FakeClient("I'm Claude, running on Amazon Q / AWS Bedrock."),
+        "claude-sonnet-5-5",
+    ))
+    assert spoof.status == "fail"
+    assert spoof.score == 30.0
+
+
 def test_thinking_skip_unknown_model():
     d = ThinkingSignatureDetector()
     assert d.applies_to("gpt-4o") is False

@@ -545,6 +545,7 @@ async def api_probe(
     request: Request,
     base_url: str = Form(...),
     api_key: str = Form(...),
+    protocol: str | None = Form(None),
 ) -> JSONResponse:
     """Probe a relay's /v1/models for the form's pre-submit pill.
 
@@ -585,7 +586,7 @@ async def api_probe(
             status_code=200,
         )
 
-    payload = await probe_relay(base_url, api_key)
+    payload = await probe_relay(base_url, api_key, protocol=protocol)
     return JSONResponse(payload)
 
 

@@ -103,15 +103,21 @@ class IdentityDetector(ActiveDetector):
                 detected_brands.append(label)
 
         # Scoring per §3.1:
-        # 100: both required, no competitor
-        # 60: only one required (still some Claude/Anthropic signal)
-        # 30: required + competitor mixed in
-        # 0:  no Claude signal at all
-        if len(required_hits) == 2 and not competitor_hits:
+        # 100: both Claude + Anthropic, no competitor/non-Anthropic brand
+        # 85:  explicitly identifies as Claude with 0 competitor/non-Anthropic brands
+        #      (Claude 5.x frequently states "I'm Claude" and declines to guess
+        #      the company or version when no system prompt is given)
+        # 60:  only Anthropic mentioned without claiming to be Claude
+        # 30:  required + competitor mixed in
+        # 0:   no Claude/Anthropic signal at all
+        has_claude = any("claude" in p for p in required_hits)
+        if len(required_hits) == 2 and not competitor_hits and not detected_brands:
             score = 100.0
-        elif required_hits and competitor_hits:
+        elif required_hits and (competitor_hits or detected_brands):
             score = 30.0
-        elif required_hits:  # exactly one required, no competitor
+        elif has_claude and not competitor_hits and not detected_brands:
+            score = 85.0
+        elif required_hits:  # only Anthropic without Claude, no competitor
             score = 60.0
         else:
             score = 0.0

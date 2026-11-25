@@ -14,12 +14,12 @@ class BasicRequestDetector(ActiveDetector):
 
     async def run(self, client, model: str) -> DetectorResult:
         try:
-            # 64 tokens: Gemini 3 series defaults to thinking-on, with reasoning
-            # tokens consuming ~32 of these before any text is emitted. With 16
-            # we'd see finish_reason=length and an empty content string.
+            # 512 tokens: Gemini 3/4 series default to thinking-on, with
+            # reasoning tokens easily burning 64-256 tokens before emitting
+            # "pong". Non-thinking models stop after 1 token anyway.
             _req, resp, _h, _lat = await client.chat_completions_create(
                 model=model,
-                max_completion_tokens=64,
+                max_completion_tokens=512,
                 temperature=0,
                 messages=[{"role": "user", "content": "Reply with exactly: pong"}],
             )

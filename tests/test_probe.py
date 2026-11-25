@@ -154,11 +154,97 @@ async def test_probe_happy_path_classifies_all_buckets(monkeypatch):
         + out["by_protocol"]["gemini"]
     )
 
-    # request shape: hit /v1/models with both Bearer + x-api-key headers.
+    # Default (non-anthropic) probe sends clean Bearer auth without
+    # anthropic-version so multi-protocol gateways like new-api / CLODEX
+    # return OpenAI & Gemini catalogs instead of switching to Anthropic-only.
     assert captured["url"] == "https://relay.example.com/v1/models"
     assert captured["auth"] == "Bearer sk-test-key"
-    assert captured["xkey"] == "sk-test-key"
-    assert captured["anthropic_version"] == "2023-06-01"
+    assert captured["xkey"] is None
+    assert captured["anthropic_version"] is None
+
+
+@pytest.mark.asyncio
+async def test_probe_newapi_virtual_key_discovers_openai_gemini_and_claude(monkeypatch):
+    """new-api / CLODEX routes GET /v1/models by `anthropic-version`:
+    - With `anthropic-version`: returns ONLY Claude models (ChannelTypeAnthropic).
+    - Without `anthropic-version`: returns OpenAI + Gemini models (ChannelTypeOpenAI).
+    Protocol-aware probing must discover the matching catalog on every tab."""
+    seen_headers: list[dict[str, str | None]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_headers.append({
+            "url": str(request.url),
+            "auth": request.headers.get("authorization"),
+            "xkey": request.headers.get("x-api-key"),
+            "anthropic_version": request.headers.get("anthropic-version"),
+        })
+        if request.headers.get("anthropic-version"):
+            return httpx.Response(200, json={"data": [
+                {"id": "claude-sonnet-5-5", "type": "model"},
+                {"id": "claude-opus-5-5", "type": "model"},
+            ]})
+        return httpx.Response(200, json={"object": "list", "data": [
+            {"id": "gpt-6.2-sol", "object": "model"},
+            {"id": "gpt-6.2-astra", "object": "model"},
+            {"id": "gemini-4-neon", "object": "model"},
+            {"id": "gemini-3.8-flash", "object": "model"},
+        ]})
+
+    _patch_async_client(monkeypatch, _mock(handler))
+
+    oai = await probe_relay("https://clodex.xyz/v1", "sk-unified", protocol="openai")
+    assert oai["ok"] is True
+    assert "gpt-6.2-sol" in oai["by_protocol"]["openai"]
+    assert "gemini-4-neon" in oai["by_protocol"]["gemini"]
+    assert seen_headers[0]["anthropic_version"] is None
+    assert len(seen_headers) == 1
+
+    gem = await probe_relay("https://clodex.xyz/v1", "sk-unified", protocol="gemini")
+    assert gem["ok"] is True
+    assert "gemini-4-neon" in gem["by_protocol"]["gemini"]
+    assert seen_headers[1]["anthropic_version"] is None
+
+    ant = await probe_relay("https://clodex.xyz/v1", "sk-unified", protocol="anthropic")
+    assert ant["ok"] is True
+    assert "claude-sonnet-5-5" in ant["by_protocol"]["anthropic"]
+    assert seen_headers[2]["anthropic_version"] == "2023-06-01"
+    assert seen_headers[2]["xkey"] == "sk-unified"
+
+
+@pytest.mark.asyncio
+async def test_probe_newapi_claude_only_key_on_openai_offers_claude_handoff(monkeypatch):
+    """When a Claude-only key is pasted on /openai, clean Bearer returns [] so
+    probe falls back to anthropic headers and discovers Claude models for handoff."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers.get("anthropic-version"):
+            return httpx.Response(200, json={"data": [
+                {"id": "claude-sonnet-5-5", "type": "model"},
+            ]})
+        return httpx.Response(200, json={"object": "list", "data": []})
+
+    _patch_async_client(monkeypatch, _mock(handler))
+    out = await probe_relay("https://clodex.xyz/v1", "sk-claude-only", protocol="openai")
+    assert out["ok"] is True
+    assert out["by_protocol"]["openai"] == []
+    assert out["by_protocol"]["anthropic"] == ["claude-sonnet-5-5"]
+
+
+@pytest.mark.asyncio
+async def test_probe_newapi_openai_only_key_on_claude_offers_openai_handoff(monkeypatch):
+    """When an OpenAI-only key is pasted on /claude, anthropic headers return []
+    so probe falls back to clean Bearer and discovers OpenAI models for handoff."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.headers.get("anthropic-version"):
+            return httpx.Response(200, json={"data": []})
+        return httpx.Response(200, json={"object": "list", "data": [
+            {"id": "gpt-6.2-sol", "object": "model"},
+        ]})
+
+    _patch_async_client(monkeypatch, _mock(handler))
+    out = await probe_relay("https://clodex.xyz/v1", "sk-gpt-only", protocol="anthropic")
+    assert out["ok"] is True
+    assert out["by_protocol"]["anthropic"] == []
+    assert out["by_protocol"]["openai"] == ["gpt-6.2-sol"]
 
 
 @pytest.mark.asyncio

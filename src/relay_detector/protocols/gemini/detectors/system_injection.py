@@ -26,7 +26,7 @@ class SystemInjectionDetector(ActiveDetector):
         try:
             _r1, canary_resp, _h1, _l1 = await client.chat_completions_create(
                 model=model,
-                max_completion_tokens=128,
+                max_completion_tokens=512,
                 temperature=0,
                 messages=[
                     {"role": "system", "content": sys_prompt},

@@ -160,6 +160,7 @@
     const fd = new FormData();
     fd.set('base_url', baseUrl);
     fd.set('api_key', apiKey);
+    fd.set('protocol', protocol);
     let r, data;
     try {
       r = await fetch('/api/probe', {method: 'POST', body: fd, signal: ctrl.signal});
@@ -167,11 +168,13 @@
     } catch (e) {
       if (e.name === 'AbortError') return;
       setPill('warn', '⚪ ' + (i18n.probe_failed || 'Probe failed, but detection can continue') + ' — ' + (i18n.probe_direct_try || 'the entered model will be tried directly'));
+      setSubmitEnabled(true);
       return;
     }
     if (r.status === 429) {
       setPill('warn', '⚠ ' + (data.error || (i18n.probe_rate_limited || 'Probe rate limited, try again later')) + ' (' + (i18n.probe_can_continue || 'detection can continue') + ')');
       lastKey = null;
+      setSubmitEnabled(true);
       return;
     }
     renderProbeResult(data, protocol);
@@ -189,12 +192,14 @@
         setPill('fail', '🔴 ' + (data.error || (i18n.auth_failed || 'Authentication failed')));
       } else {
         setPill('warn', '⚪ ' + (data.error || (i18n.probe_failed || 'Probe failed, but detection can continue')) + ' — ' + (i18n.probe_can_continue || 'detection can continue'));
+        setSubmitEnabled(true);
       }
       return;
     }
 
     if (!data.models_endpoint_supported) {
       setPill('neutral', '⚪ ' + (data.note || (i18n.models_unavailable || 'This relay does not expose /v1/models')) + ' (' + (i18n.probe_can_continue || 'detection can continue') + ')');
+      setSubmitEnabled(true);
       return;
     }
 
@@ -222,7 +227,11 @@
       }
       setPillHtml('warn', html);
       bindHandoff(protocol);
-      setSubmitEnabled(false, protoLabel + ': ' + (i18n.models_unavailable || 'This relay does not expose /v1/models'));
+      if (others.length > 0) {
+        setSubmitEnabled(false, protoLabel + ': ' + (i18n.models_unavailable || 'This relay does not expose /v1/models'));
+      } else {
+        setSubmitEnabled(true);
+      }
       return;
     }
 
@@ -298,6 +307,11 @@
     lastKey = null;
     runProbe();
   });
+  if (modelInput) {
+    modelInput.addEventListener('input', () => {
+      if (modelInput.value.trim()) setSubmitEnabled(true);
+    });
+  }
 
   document.querySelectorAll('.preset-btn[data-preset-url]').forEach((btn) => {
     btn.addEventListener('click', () => {

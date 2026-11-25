@@ -26,7 +26,7 @@ class StructuredOutputDetector(ActiveDetector):
             # negative on relays that DO honor response_format.
             _req, resp, _h, _lat = await client.chat_completions_create(
                 model=model,
-                max_completion_tokens=384,
+                max_completion_tokens=1024,
                 temperature=0,
                 messages=[
                     {

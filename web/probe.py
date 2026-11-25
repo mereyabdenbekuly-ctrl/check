@@ -50,30 +50,45 @@ def _classify(model_id: str) -> str | None:
     if s.startswith("gemini") or "/gemini" in s:
         return "gemini"
     if (
-        s.startswith(("gpt-", "o1", "o3", "o4", "chatgpt", "text-embedding-"))
+        s.startswith(("gpt-", "o1", "o3", "o4", "chatgpt", "codex-", "text-embedding-"))
         or s.startswith(("openai/", "azure/openai"))
     ):
         return "openai"
     return None
 
 
-# (base_url, api_key_hash) -> (timestamp, response_dict)
-_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+def _normalize_protocol(protocol: str | None) -> str | None:
+    if not isinstance(protocol, str):
+        return None
+    p = protocol.strip().lower()
+    if p == "claude":
+        return "anthropic"
+    return p if p in PROTOCOLS else None
 
 
-def _cache_key(base_url: str, api_key: str) -> tuple[str, str]:
+# (base_url, api_key_hash, protocol) -> (timestamp, response_dict)
+_CACHE: dict[tuple[str, str, str], tuple[float, dict[str, Any]]] = {}
+
+
+def _cache_key(base_url: str, api_key: str, protocol: str | None = None) -> tuple[str, str, str]:
     h = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
-    return (base_url.rstrip("/").lower(), h)
+    p = _normalize_protocol(protocol) or ""
+    return (base_url.rstrip("/").lower(), h, p)
 
 
-async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
+async def probe_relay(
+    base_url: str,
+    api_key: str,
+    protocol: str | None = None,
+) -> dict[str, Any]:
     """Probe a relay's /models endpoint. Always returns a structured dict.
 
     Never raises — network and protocol errors are returned as ``ok=false``
     with a human-readable ``error`` field so the frontend can render them
     inline next to the api_key field.
     """
-    key = _cache_key(base_url, api_key)
+    proto = _normalize_protocol(protocol)
+    key = _cache_key(base_url, api_key, proto)
     now = time.monotonic()
     cached = _CACHE.get(key)
     if cached and now - cached[0] < CACHE_TTL_S:
@@ -81,20 +96,71 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
 
     urls = _model_probe_urls(base_url)
 
-    headers = {
-        # Bearer is the OpenAI/Gemini-compat convention. Anthropic native
-        # uses x-api-key, but most relays accept either; we send both to
-        # maximize hit rate without leaking either to non-relay servers.
+    # Multi-protocol relays such as new-api / OneAPI / CLODEX route
+    # GET /v1/models based on whether `anthropic-version` is present:
+    #   - With `anthropic-version`, they return ONLY Anthropic-compatible models.
+    #   - With clean Bearer auth (no `anthropic-version`), they return OpenAI
+    #     and Gemini models (and may omit Claude-only models on unified keys).
+    # Sending `anthropic-version` unconditionally broke OpenAI/Gemini discovery
+    # on new-api gateways. Probe with the protocol-matching header profile
+    # first and fall back/supplement with the alternate profile only when:
+    #   1) the primary probe fails with 400/401/403 (e.g. api.anthropic.com
+    #      requiring `anthropic-version` + `x-api-key`), OR
+    #   2) the primary probe returns 0 models for the requested protocol (or
+    #      0 models total when protocol is unspecified), so cross-protocol
+    #      handoff suggestions still see the other catalog.
+    openai_headers = {
+        "authorization": f"Bearer {api_key}",
+        "content-type": "application/json",
+    }
+    anthropic_headers = {
         "authorization": f"Bearer {api_key}",
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
+    if proto == "anthropic":
+        primary_headers, secondary_headers = anthropic_headers, openai_headers
+    else:
+        primary_headers, secondary_headers = openai_headers, anthropic_headers
 
     out: dict[str, Any]
+    ids: list[str] = []
     try:
         async with httpx.AsyncClient(timeout=PROBE_TIMEOUT_S) as client:
-            resp, payload = await _get_models_with_fallback(client, urls, headers)
+            resp, payload = await _get_models_with_fallback(client, urls, primary_headers)
+            if resp.status_code < 400 and payload is not None:
+                ids = _extract_model_ids(payload)
+
+            need_secondary = False
+            if resp.status_code in (400, 401, 403):
+                need_secondary = True
+            elif resp.status_code < 400 and payload is not None:
+                if proto is not None:
+                    has_target = any(_classify(mid) == proto for mid in ids)
+                    if not has_target:
+                        need_secondary = True
+                elif not ids:
+                    need_secondary = True
+
+            if need_secondary:
+                try:
+                    resp2, payload2 = await _get_models_with_fallback(
+                        client, urls, secondary_headers
+                    )
+                except Exception:  # noqa: BLE001
+                    resp2, payload2 = None, None
+
+                if resp2 is not None and resp2.status_code < 400 and payload2 is not None:
+                    ids2 = _extract_model_ids(payload2)
+                    if resp.status_code >= 400 or payload is None:
+                        resp, payload, ids = resp2, payload2, ids2
+                    else:
+                        seen = set(ids)
+                        for mid in ids2:
+                            if mid not in seen:
+                                seen.add(mid)
+                                ids.append(mid)
     except (httpx.TimeoutException, httpx.NetworkError) as e:
         out = _err(f"网络/超时: {type(e).__name__}", base_url, status=None)
         _CACHE[key] = (now, out)
@@ -148,7 +214,6 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         _CACHE[key] = (now, out)
         return out
 
-    ids = _extract_model_ids(payload)
     by_proto: dict[str, list[str]] = {p: [] for p in PROTOCOLS}
     for mid in ids:
         bucket = _classify(mid)
@@ -360,8 +425,8 @@ def _excerpt(text: str, n: int = 160) -> str:
 
 
 # Synchronous wrapper for tests; never called from the async route.
-def probe_relay_sync(base_url: str, api_key: str) -> dict[str, Any]:
-    return asyncio.run(probe_relay(base_url, api_key))
+def probe_relay_sync(base_url: str, api_key: str, protocol: str | None = None) -> dict[str, Any]:
+    return asyncio.run(probe_relay(base_url, api_key, protocol=protocol))
 
 
 def clear_cache() -> None:
@@ -411,7 +476,7 @@ async def probe_model_alive(
             async with make_client(base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S) as c:
                 _req, _resp, _h, _lat = await c.chat_completions_create(
                     model=model,
-                    max_completion_tokens=4,
+                    max_completion_tokens=16,
                     messages=[{"role": "user", "content": "ok"}],
                 )
         elif protocol == "gemini":
@@ -419,7 +484,7 @@ async def probe_model_alive(
             async with make_client(base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S) as c:
                 _req, _resp, _h, _lat = await c.chat_completions_create(
                     model=model,
-                    max_completion_tokens=4,
+                    max_completion_tokens=16,
                     messages=[{"role": "user", "content": "ok"}],
                 )
         elif protocol == "anthropic":
@@ -427,7 +492,7 @@ async def probe_model_alive(
             async with make_client(base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S) as c:
                 _req, _resp, _h, _lat = await c.messages_create(
                     model=model,
-                    max_tokens=4,
+                    max_tokens=16,
                     messages=[{"role": "user", "content": "ok"}],
                 )
         else:

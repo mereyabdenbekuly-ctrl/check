@@ -18,7 +18,7 @@ class StructuredOutputDetector(ActiveDetector):
         try:
             _req, resp, _h, _lat = await client.chat_completions_create(
                 model=model,
-                max_completion_tokens=128,
+                max_completion_tokens=1024,
                 temperature=0,
                 messages=[
                     {

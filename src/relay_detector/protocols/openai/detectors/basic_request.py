@@ -10,7 +10,7 @@ class BasicRequestDetector(ActiveDetector):
     name = "basic_request"
     display_name = "基础请求"
     weight = 15.0
-    max_completion_tokens = 96
+    max_completion_tokens = 512
 
     async def run(self, client, model: str) -> DetectorResult:
         try:
