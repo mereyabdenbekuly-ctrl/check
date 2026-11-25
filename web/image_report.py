@@ -388,11 +388,18 @@ def render_report_jpg(report: dict[str, Any], locale: str = "ru") -> bytes:
         if isinstance(r, dict)
     }
 
-    labels = [
-        (name, label)
-        for name, label in detector_display(loc, protocol)
-        if name != "long_context" or (by_name.get("long_context") or {}).get("status") != "skip"
-    ]
+    if report.get("mode") == "pelican":
+        labels = [
+            (name, label)
+            for name, label in detector_display(loc, protocol)
+            if name in by_name
+        ]
+    else:
+        labels = [
+            (name, label)
+            for name, label in detector_display(loc, protocol)
+            if name != "long_context" or (by_name.get("long_context") or {}).get("status") != "skip"
+        ]
     row_h = min(54, max(35, int(650 / max(1, len(labels)))))
     ultra_compact = len(labels) >= 15
     compact = len(labels) >= 13

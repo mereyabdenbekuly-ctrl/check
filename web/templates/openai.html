@@ -30,7 +30,17 @@
 </section>
 
 <section class="card form-card">
-  <form id="detect-form" data-endpoint="/api/detect/openai" autocomplete="off">
+  <div class="check-tabs" role="tablist" aria-label="{{ lt(locale, 'Режим тестирования', 'Test mode', '测试模式') }}">
+    <button type="button" role="tab" class="check-tab-btn is-active" data-check-tab="audit" aria-selected="true">
+      <span>{{ lt(locale, 'Полный аудит (14 проверок)', 'Full audit (14 checks)', '完整检测（14 项）') }}</span>
+    </button>
+    <button type="button" role="tab" class="check-tab-btn" data-check-tab="pelican" aria-selected="false">
+      <span>{{ lt(locale, 'Пеликан-тест (SVG)', 'Pelican Test (SVG)', '鹈鹕骑车测试 (SVG)') }}</span>
+      <span class="check-tab-pill">{{ lt(locale, '1 запрос', '1 call', '单次请求') }}</span>
+    </button>
+  </div>
+
+  <form id="detect-form" data-endpoint="/api/detect/openai" data-protocol="openai" autocomplete="off">
     <div class="field">
       <div class="field-label-row">
         <label for="base_url">{{ lt(locale, 'Base URL провайдера', 'Provider / Relay Base URL', '接口 Base URL') }}</label>
@@ -63,7 +73,7 @@
           </ul>
         </div>
       </div>
-      <div class="field">
+      <div class="field" data-audit-only="true">
         <label for="mode">{{ lt(locale, 'Глубина проверки', 'Check depth', '检测深度') }}</label>
         <select id="mode" name="mode">
           <option value="quick">{{ lt(locale, 'Быстрая (~15 сек, 3 проверки)', 'Quick (~15s, 3 checks)', '快速 (~15 秒, 3 项)') }}</option>
@@ -73,14 +83,22 @@
       </div>
     </div>
 
-    <div class="field-checkbox">
+    <div class="pelican-tab-note" data-pelican-only="true" hidden>
+      <strong>{{ lt(locale, 'Визуальный Пеликан-тест (SVG) для OpenAI / GPT:', 'Visual Pelican SVG benchmark for OpenAI / GPT:', 'OpenAI / GPT 鹈鹕骑车 SVG 视觉测试：') }}</strong>
+      {{ lt(locale,
+        'отправляет 1 потоковый запрос «нарисуй пеликана на велосипеде в SVG» (10–20 сек), сразу рисует очищенный SVG прямо здесь и измеряет TTFT + реальный tok/s.',
+        'sends 1 streamed prompt ("draw a pelican riding a bicycle in SVG", ~10–20s), renders the sanitized SVG right below, and measures TTFT + live streaming tok/s.',
+        '仅发起 1 次流式请求（约 10–20 秒），直接在下方渲染安全清洗后的 SVG，并实时测量 TTFT 与真实 tok/s。') }}
+    </div>
+
+    <div class="field-checkbox" data-audit-only="true">
       <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
       <label for="include_long_context">
         <strong>{{ lt(locale, 'Проверка длинного контекста (32k → 200k)', 'Long-context check (32k → 200k)', '长上下文真实性 (32k → 200k)') }}</strong>
         <span class="checkbox-hint">{{ lt(locale, 'Дополнительные needle-in-haystack запросы. Оплачивается вашим API-ключом.', 'Extra needle-in-haystack probes. Paid by your API key.', '额外发送大海捞针探针，由你的 API key 支付。') }}</span>
       </label>
     </div>
-    <div class="field-checkbox">
+    <div class="field-checkbox" data-audit-only="true">
       <input type="checkbox" id="include_long_context_extreme" name="include_long_context_extreme" value="true" />
       <label for="include_long_context_extreme">
         <strong>{{ lt(locale, 'Экстремальный контекст', 'Extreme context', '极限长上下文') }}</strong>
@@ -92,6 +110,8 @@
     <p class="form-error" id="form-error" hidden></p>
   </form>
 </section>
+
+{% include "_pelican_inline.html" %}
 
 <section class="features">
   <div class="feature"><h3>Chat Completions</h3><p>{{ lt(locale, 'Проверяет id, object, choices, finish_reason и корректность структуры usage.', 'Checks id, object, choices, finish_reason, and usage envelope shape.', '检查 id、object、choices、finish_reason 和 usage 结构。') }}</p></div>

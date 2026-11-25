@@ -280,3 +280,90 @@ def test_jpg_renders_cleanly_with_all_17_anthropic_detectors():
     jpg = render_report_jpg(report, locale="ru")
     assert jpg[:3] == b"\xff\xd8\xff"
     assert len(jpg) > 20_000
+
+
+def test_pelican_tabs_on_all_model_pages_and_standalone_api(monkeypatch, tmp_path):
+    monkeypatch.setattr(jobs, "JOBS_DIR", tmp_path)
+    pelican_eval = extract_and_evaluate_pelican_svg(RICH_PELICAN_SVG)
+    score = pelican_eval.pop("score")
+    status = pelican_eval.pop("status")
+
+    async def fake_exec(base_url, api_key, model, protocol, timeout_s=95.0):
+        return (
+            {
+                "name": "pelican_svg",
+                "display_name": "鹈鹕骑车 SVG 测试",
+                "status": status,
+                "score": score,
+                "weight": 8.0,
+                "details": pelican_eval,
+                "error": None,
+                "duration_ms": 4200,
+            },
+            {
+                "total_latency_ms": 4200,
+                "ttft_ms": 310,
+                "tokens_per_second": 88.5,
+                "stream_analysis": {"verdict": "real_stream", "chunk_count": 72, "median_gap_ms": 14.0},
+                "request_count": 1,
+                "backoff_events": 0,
+                "usage": {"input_tokens": 52, "output_tokens": 370},
+            },
+        )
+
+    monkeypatch.setattr(jobs, "_execute_pelican_detector", fake_exec)
+
+    client = TestClient(app)
+    for path in ("/claude", "/openai", "/gemini"):
+        page = client.get(path)
+        assert page.status_code == 200
+        assert 'data-check-tab="pelican"' in page.text
+        assert 'id="pelican-inline-result"' in page.text
+
+    standalone = client.get("/pelican?protocol=openai")
+    assert standalone.status_code == 200
+    assert 'data-pelican-standalone="true"' in standalone.text
+    assert 'data-pelican-proto="openai"' in standalone.text
+
+    secret_key = "sk-super-secret-pelican-test-key-99999"
+    resp = client.post(
+        "/api/pelican",
+        data={
+            "protocol": "anthropic",
+            "base_url": "https://clodex.xyz",
+            "api_key": secret_key,
+            "model": "claude-sonnet-5-5",
+        },
+    )
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["ok"] is True
+    assert payload["pelican"]["valid_svg"] is True
+    assert payload["pelican"]["svg_b64"]
+    assert secret_key not in resp.text
+
+    job_id = payload["job_id"]
+    try:
+        # Raw API key never written to disk
+        saved_json = jobs.report_path(job_id, "anthropic").read_text(encoding="utf-8")
+        assert secret_key not in saved_json
+
+        # Shareable /r/{id}, SVG download, JPG, and /compare all work out of the box
+        r_page = client.get(f"/r/{job_id}")
+        assert r_page.status_code == 200
+        assert "data:image/svg+xml;base64," in r_page.text
+        assert r_page.text.count("class=\"check-row ") == 1
+
+        svg_dl = client.get(f"/r/{job_id}/pelican.svg")
+        assert svg_dl.status_code == 200
+        assert svg_dl.headers["content-security-policy"] == "sandbox"
+
+        jpg_resp = client.get(f"/r/{job_id}.jpg")
+        assert jpg_resp.status_code == 200
+        assert jpg_resp.content[:3] == b"\xff\xd8\xff"
+
+        cmp_resp = client.get(f"/compare?a={job_id}&b={job_id}")
+        assert cmp_resp.status_code == 200
+        assert "data:image/svg+xml;base64," in cmp_resp.text
+    finally:
+        jobs._JOBS.pop(job_id, None)

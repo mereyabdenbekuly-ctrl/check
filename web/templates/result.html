@@ -76,6 +76,58 @@
 </section>
 {% endif %}
 
+{% if pelican and report.mode == 'pelican' %}
+<section class="card pelican-card">
+  <div class="pelican-head">
+    <div>
+      <span class="eyebrow eyebrow-success pelican-kicker">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>{{ lt(locale, 'ВИЗУАЛЬНЫЙ ТЕСТ · ПЕЛИКАН НА ВЕЛОСИПЕДЕ (SVG)', 'VISUAL BENCHMARK · PELICAN ON A BICYCLE (SVG)', '视觉基准测试 · 鹈鹕骑自行车 (SVG)') }}</span>
+      </span>
+      <h2>{{ lt(locale, 'Как модель нарисовала пеликана на велосипеде', 'How the model drew a pelican riding a bicycle', '模型绘制的「鹈鹕骑自行车」SVG') }}</h2>
+      <p class="muted small pelican-sub">
+        {{ lt(locale,
+          'Тест Симона Уиллисона на пространственное мышление и векторную геометрию. SVG безопасно очищен и отрисован в изолированном контейнере.',
+          'Simon Willison spatial-reasoning & vector-geometry benchmark. The SVG is strictly sanitized and rendered in an isolated image sandbox.',
+          'Simon Willison 空间推理与矢量几何基准测试。SVG 已经过严格安全清洗并在隔离图像沙箱中渲染。') }}
+      </p>
+    </div>
+    <div class="pelican-actions">
+      {% if pelican.valid_svg %}
+      <button type="button" class="btn btn-secondary pelican-bg-toggle" id="pelican-bg-btn">
+        {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') }}
+      </button>
+      <a class="btn btn-secondary" href="/r/{{ job_id }}/pelican.svg" download="clodex-pelican-{{ job_id }}.svg">
+        {{ lt(locale, 'Скачать SVG', 'Download SVG', '下载 SVG') }}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if pelican.valid_svg %}
+  <div class="pelican-stage" id="pelican-stage">
+    <img
+      class="pelican-img"
+      src="data:image/svg+xml;base64,{{ pelican.svg_b64 }}"
+      alt="{{ lt(locale, 'SVG пеликана на велосипеде, сгенерированный моделью', 'Model-generated SVG of a pelican riding a bicycle', '模型生成的鹈鹕骑自行车 SVG') }}"
+    />
+  </div>
+  <div class="pelican-stats">
+    <span class="hub-pill">{{ lt(locale, 'Оценка', 'Score', '评分') }}: <strong>{{ '%.0f' | format(pelican.score) }}/100</strong></span>
+    <span class="hub-pill">{{ lt(locale, 'Примитивов', 'Shapes', '图元数') }}: <strong>{{ pelican.primitive_count }}</strong></span>
+    <span class="hub-pill">{{ lt(locale, 'Цветов', 'Colors', '颜色数') }}: <strong>{{ pelican.unique_colors }}</strong></span>
+    <span class="hub-pill">{{ lt(locale, 'Размер SVG', 'SVG size', 'SVG 大小') }}: <strong>{{ '{:,}'.format(pelican.svg_bytes) }} B</strong></span>
+    {% if pelican.view_box %}<span class="hub-pill">viewBox: <code>{{ pelican.view_box }}</code></span>{% endif %}
+  </div>
+  {% else %}
+  <div class="pelican-empty">
+    <strong>{{ lt(locale, 'Модель не вернула валидный SVG', 'Model did not produce a valid SVG', '模型未返回有效 SVG') }}</strong>
+    {% if pelican.reason %}<p class="muted small">{{ pelican.reason }}</p>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="result-card">
   <div class="result-left">
     <div class="score-ring score-{{ verdict_class }}">
@@ -110,7 +162,7 @@
   </div>
 </section>
 
-{% if pelican %}
+{% if pelican and report.mode != 'pelican' %}
 <section class="card pelican-card">
   <div class="pelican-head">
     <div>

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lt(locale, 'Пеликан-тест (SVG) для Claude, GPT и Gemini · CLODEX Check', 'Pelican on a Bicycle SVG Benchmark for Claude, GPT & Gemini · CLODEX Check', '鹈鹕骑自行车 SVG 视觉测试（Claude / GPT / Gemini）· CLODEX Check') }}{% endblock %}
+{% block description %}{{ lt(locale, 'Быстрый визуальный Пеликан-тест (SVG) Симона Уиллисона для любого AI API (Claude, OpenAI GPT, Gemini): 1 потоковый запрос за 10–20 сек, живой рендер SVG, TTFT, реальный tok/s и детектор фейк-стрима.', 'Fast standalone Simon Willison Pelican-on-a-bicycle SVG benchmark for Claude, OpenAI GPT, and Gemini APIs: single streamed call in 10–20s, live SVG render, TTFT, true tok/s, and fake-stream check.', '独立的 Simon Willison「鹈鹕骑自行车」SVG 视觉测试，支持 Claude / OpenAI / Gemini：单次流式请求 10–20 秒出图，实时渲染 SVG、测量 TTFT 与真实 tok/s。') }}{% endblock %}
+{% block canonical %}https://check.clodex.xyz/pelican{% endblock %}
+{% block og_url %}https://check.clodex.xyz/pelican{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="eyebrow eyebrow-success">
+    <span class="eyebrow-dot" aria-hidden="true"></span>
+    <span>{{ lt(locale, 'ВИЗУАЛЬНЫЙ БЕНЧМАРК · ПЕЛИКАН НА ВЕЛОСИПЕДЕ (SVG)', 'VISUAL BENCHMARK · PELICAN ON A BICYCLE (SVG)', '视觉基准测试 · 鹈鹕骑自行车 (SVG)') }}</span>
+  </div>
+  <h1>{{ lt(locale, 'Пеликан-тест для ИИ-моделей (SVG)', 'Pelican-on-a-Bicycle SVG Test', 'AI 模型鹈鹕骑车 SVG 测试') }}</h1>
+  <p class="hero-sub answer-capsule">
+    <strong>{{ lt(locale, 'Культовый визуальный тест Симона Уиллисона:', 'Simon Willison’s iconic visual benchmark:', 'Simon Willison 经典视觉测试：') }}</strong>
+    {{ lt(locale,
+      'модель за 1 потоковый запрос рисует в SVG пеликана на велосипеде. Сразу видно уровень пространственного мышления модели, реальную скорость стриминга (tok/s) и отсутствие подмены на дешёвый бэкенд.',
+      'the model draws a pelican riding a bicycle in pure SVG over a single streamed call. Instantly reveals spatial reasoning quality, live streaming tok/s, and silent downgrades to cheaper models.',
+      '模型通过单次流式请求用纯 SVG 绘制一只骑自行车的鹈鹕。直观展示空间推理能力、真实流式 tok/s 速度，一眼识破底层换模降级。') }}
+  </p>
+</section>
+
+<section class="card form-card pelican-form-card">
+  <div class="proto-switch" role="tablist" aria-label="{{ lt(locale, 'Выбор протокола', 'Protocol', '选择协议') }}">
+    <button
+      type="button"
+      role="tab"
+      class="proto-switch-btn{% if initial_protocol == 'anthropic' %} is-active{% endif %}"
+      data-pelican-proto="anthropic"
+      data-default-url="https://clodex.xyz"
+      data-default-model="claude-sonnet-5-5"
+      aria-selected="{{ 'true' if initial_protocol == 'anthropic' else 'false' }}"
+    >Claude (Anthropic)</button>
+    <button
+      type="button"
+      role="tab"
+      class="proto-switch-btn{% if initial_protocol == 'openai' %} is-active{% endif %}"
+      data-pelican-proto="openai"
+      data-default-url="https://clodex.xyz/v1"
+      data-default-model="gpt-6.2-sol"
+      aria-selected="{{ 'true' if initial_protocol == 'openai' else 'false' }}"
+    >OpenAI / GPT</button>
+    <button
+      type="button"
+      role="tab"
+      class="proto-switch-btn{% if initial_protocol == 'gemini' %} is-active{% endif %}"
+      data-pelican-proto="gemini"
+      data-default-url="https://clodex.xyz/v1"
+      data-default-model="gemini-4-neon"
+      aria-selected="{{ 'true' if initial_protocol == 'gemini' else 'false' }}"
+    >Gemini</button>
+  </div>
+
+  <form
+    id="detect-form"
+    data-pelican-standalone="true"
+    data-protocol="{{ initial_protocol }}"
+    data-endpoint="/api/pelican"
+    autocomplete="off"
+  >
+    <input type="hidden" id="pelican_protocol" name="protocol" value="{{ initial_protocol }}" />
+
+    <div class="field">
+      <div class="field-label-row">
+        <label for="base_url">{{ lt(locale, 'Base URL провайдера', 'Provider / Relay Base URL', '接口 Base URL') }}</label>
+        <button
+          type="button"
+          class="preset-btn"
+          id="pelican-preset-btn"
+          data-preset-url="{{ 'https://clodex.xyz' if initial_protocol == 'anthropic' else 'https://clodex.xyz/v1' }}"
+          data-preset-model="{{ 'claude-sonnet-5-5' if initial_protocol == 'anthropic' else ('gpt-6.2-sol' if initial_protocol == 'openai' else 'gemini-4-neon') }}"
+        >
+          {{ lt(locale, 'Подставить clodex.xyz', 'Use clodex.xyz', '填入 clodex.xyz') }}
+        </button>
+      </div>
+      <input
+        type="url"
+        id="base_url"
+        name="base_url"
+        required
+        placeholder="{{ 'https://clodex.xyz' if initial_protocol == 'anthropic' else 'https://clodex.xyz/v1' }}"
+      />
+      <p class="hint" id="pelican-url-hint">
+        {{ lt(locale,
+          'Для Claude — корневой URL без /v1/messages (например https://clodex.xyz). Для OpenAI и Gemini — путь с /v1 (например https://clodex.xyz/v1).',
+          'For Claude, use the root URL without /v1/messages (e.g. https://clodex.xyz). For OpenAI and Gemini, include /v1 (e.g. https://clodex.xyz/v1).',
+          'Claude 填写不含 /v1/messages 的根地址（如 https://clodex.xyz）；OpenAI 与 Gemini 填写带 /v1 的地址（如 https://clodex.xyz/v1）。') }}
+      </p>
+    </div>
+
+    <div class="field">
+      <div class="field-label-row">
+        <label for="api_key">{{ lt(locale, 'API-ключ', 'API key', 'API 密钥') }}</label>
+        <a class="field-aux-link" href="https://clodex.xyz/keys" target="_blank" rel="noopener">{{ lt(locale, 'Получить ключ CLODEX ↗', 'Get CLODEX key ↗', '获取 CLODEX 密钥 ↗') }}</a>
+      </div>
+      <input type="password" id="api_key" name="api_key" required placeholder="sk-..." minlength="8" />
+      <p class="hint">{{ lt(locale, 'API-ключ живёт только в RAM во время запроса и никогда не пишется на диск или в отчёт.', 'API key lives only in RAM during the call and is never saved to disk or reports.', 'API key 仅在请求期间存于内存，永不写入磁盘或报告。') }}</p>
+    </div>
+
+    <div class="field">
+      <label for="model">{{ lt(locale, 'Целевая модель', 'Target model', '目标模型') }}</label>
+      <div class="combo">
+        <input
+          type="text"
+          id="model"
+          name="model"
+          required
+          value="{{ 'claude-sonnet-5-5' if initial_protocol == 'anthropic' else ('gpt-6.2-sol' if initial_protocol == 'openai' else 'gemini-4-neon') }}"
+          autocomplete="off"
+          maxlength="200"
+        />
+        <ul class="combo-list" id="model-list" hidden>
+          {% for m in models_by_protocol[initial_protocol] %}
+          <li class="combo-item" data-value="{{ m }}">{{ m }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <p class="hint">{{ lt(locale, 'Выберите модель из списка или введите любое имя модели. После ввода ключа список подгрузится с вашего эндпоинта.', 'Pick a model or type any model ID. Models auto-load from your endpoint after entering your key.', '选择或输入任意模型名；填入密钥后将自动探测接口可用模型。') }}</p>
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary btn-submit">
+      {{ lt(locale, 'Нарисовать пеликана (SVG)', 'Draw Pelican (SVG)', '生成鹈鹕骑车 SVG') }}
+    </button>
+    <p class="form-error" id="form-error" hidden></p>
+  </form>
+</section>
+
+<section class="card pelican-card pelican-inline-card" id="pelican-inline-result" hidden>
+  <div class="pelican-head">
+    <div>
+      <span class="eyebrow eyebrow-success pelican-kicker">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>{{ lt(locale, 'РЕЗУЛЬТАТ · ПЕЛИКАН НА ВЕЛОСИПЕДЕ (SVG)', 'RESULT · PELICAN ON A BICYCLE (SVG)', '检测结果 · 鹈鹕骑自行车 (SVG)') }}</span>
+      </span>
+      <h2 id="pelican-res-title">{{ lt(locale, 'Сгенерированный SVG', 'Generated SVG', '生成的 SVG') }}</h2>
+      <p class="muted small pelican-sub" id="pelican-res-meta"></p>
+    </div>
+    <div class="pelican-actions">
+      <button type="button" class="btn btn-secondary" id="pelican-inline-bg-btn">
+        {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') }}
+      </button>
+      <a class="btn btn-secondary" id="pelican-inline-svg-dl" href="#" download>
+        {{ lt(locale, 'Скачать SVG', 'Download SVG', '下载 SVG') }}
+      </a>
+      <a class="btn btn-secondary" id="pelican-inline-compare" href="#">
+        {{ lt(locale, 'Сравнить A vs B', 'Compare A vs B', '并排对比') }}
+      </a>
+      <a class="btn btn-primary" id="pelican-inline-report" href="#">
+        {{ lt(locale, 'Постоянная ссылка ↗', 'Permanent report ↗', '永久报告链接 ↗') }}
+      </a>
+    </div>
+  </div>
+
+  <div class="pelican-stage" id="pelican-inline-stage">
+    <img class="pelican-img" id="pelican-inline-img" src="" alt="Pelican SVG" />
+  </div>
+  <div class="pelican-empty" id="pelican-inline-empty" hidden></div>
+
+  <div class="pelican-stats" id="pelican-inline-stats"></div>
+
+  <div class="metrics-row metrics-row-4 pelican-inline-metrics" id="pelican-inline-metrics"></div>
+</section>
+
+<section class="card details-card pelican-prompt-card">
+  <details>
+    <summary>{{ lt(locale, 'Какой промпт отправляется модели и как выставляется оценка?', 'What prompt is sent and how is the SVG scored?', '发送给模型的提示词与评分规则') }}</summary>
+    <div class="pelican-prompt-body">
+      <p class="muted small">{{ lt(locale, 'Отправляется ровно один потоковый запрос (stream=true) со следующим промптом:', 'A single streamed call (stream=true) is sent with the exact prompt below:', '仅发送一次流式请求（stream=true），提示词如下：') }}</p>
+      <pre class="pelican-prompt-pre"><code>{{ pelican_prompt }}</code></pre>
+      <p class="muted small">{{ lt(locale, 'Полученный XML строго очищается от любых скриптов и обработчиков, после чего оценивается валидность <svg>, наличие viewBox, число векторных примитивов (path/circle/ellipse/polygon/line), палитра цветов, колёса велосипеда и реальная скорость потока tok/s.', 'The returned XML is strictly sanitized to strip scripts and event handlers, then scored on valid <svg> structure, viewBox, vector primitive count, color richness, bicycle wheels, and real streaming tok/s.', '返回的 XML 会先经过严格 XSS 安全清洗，随后评估 <svg> 合法性、viewBox、矢量图元数量、配色丰富度、车轮结构及真实流式 tok/s。') }}</p>
+    </div>
+  </details>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>{{ lt(locale, 'Защита от XSS', 'Strict SVG sandbox', '严格安全沙箱') }}</h3>
+    <p>{{ lt(locale, 'Вырезаем <script>, <foreignObject>, on*-обработчики и DOCTYPE, рендерим в изолированном <img>, отдаём с CSP: sandbox.', 'Strips <script>, <foreignObject>, event handlers, and DOCTYPE; renders inside an isolated <img> and downloads with CSP: sandbox.', '自动清洗脚本与危险标签，在隔离 <img> 容器渲染，下载附带 CSP: sandbox。') }}</p>
+  </div>
+  <div class="feature">
+    <h3>{{ lt(locale, 'Честный tok/s', 'Live streaming tok/s', '真实流式速度') }}</h3>
+    <p>{{ lt(locale, 'Пеликан генерируется в потоке (400–1200 токенов), поэтому сразу измеряет TTFT, скорость генерации и ловит буферизованный «фейк-стрим».', 'Streamed over 400–1,200 tokens, giving an accurate TTFT, live tok/s throughput, and buffered fake-stream detection.', '通过 400–1200 token 的流式生成实测首字延迟、吐字速度，并识破缓冲假流式。') }}</p>
+  </div>
+  <div class="feature">
+    <h3>{{ lt(locale, 'Сравнение пеликанов', 'Compare two pelicans', '两张鹈鹕并排对比') }}</h3>
+    <p>{{ lt(locale, 'Каждый запуск даёт постоянную ссылку /r/{id} — вставьте две ссылки в /compare и сравните двух провайдеров или две модели рядом.', 'Every run produces a permanent /r/{id} link — paste two into /compare to inspect two providers or models side by side.', '每次运行生成永久链接 /r/{id}，粘贴到 /compare 即可并排对比两张鹈鹕 SVG。') }}</p>
+  </div>
+</section>
+
+<script>
+window.__pelicanModelsByProtocol = {{ models_by_protocol | tojson }};
+</script>
+{% endblock %}

@@ -155,6 +155,8 @@ VERIDROP_JOBS_DIR=./data/jobs ./.venv/bin/uvicorn web.server:app --host 127.0.0.
 | `POST /api/detect/claude` | Запуск проверки Claude (`/v1/messages`) |
 | `POST /api/detect/openai` | Запуск проверки OpenAI (`/v1/chat/completions`) |
 | `POST /api/detect/gemini` | Запуск проверки Gemini (`/chat/completions`) |
+| `POST /api/pelican` | Быстрый отдельный Пеликан-тест (SVG) для Claude / OpenAI / Gemini (1 потоковый запрос) |
+| `GET /pelican` | Отдельная страница Пеликан-теста с живым холстом SVG и выбором протокола |
 | `GET /api/status/{job_id}` | Живой статус задачи, прогресс детекторов и поток событий |
 | `GET /api/result/{job_id}.json` | Полный машиночитаемый JSON-отчёт |
 | `GET /r/{job_id}` | Постоянная веб-страница отчёта (включая Пеликан SVG) |

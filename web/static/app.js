@@ -110,13 +110,17 @@
 // current protocol has 0 matches) offer one-click handoff to a protocol
 // the relay DOES carry.
 (function () {
-  const protocol =
-    location.pathname.startsWith('/claude') ? 'anthropic' :
-    location.pathname.startsWith('/openai') ? 'openai' :
-    location.pathname.startsWith('/gemini') ? 'gemini' : null;
-  if (!protocol) return;
+  const detectForm = document.getElementById('detect-form');
+  function getActiveProtocol() {
+    if (detectForm && detectForm.getAttribute('data-protocol')) {
+      return detectForm.getAttribute('data-protocol');
+    }
+    return location.pathname.startsWith('/claude') ? 'anthropic' :
+      location.pathname.startsWith('/openai') ? 'openai' :
+      location.pathname.startsWith('/gemini') ? 'gemini' : null;
+  }
+  if (!getActiveProtocol()) return;
 
-  const protoLabel = {anthropic: 'Claude', openai: 'OpenAI', gemini: 'Gemini'}[protocol];
   const protoPath = {anthropic: '/claude', openai: '/openai', gemini: '/gemini'};
   const i18n = window.__veridropI18n || {};
 
@@ -137,12 +141,14 @@
   let lastKey = null;
 
   async function runProbe() {
+    const protocol = getActiveProtocol();
+    if (!protocol) return;
     const baseUrl = baseUrlInput.value.trim();
     const apiKey = apiKeyInput.value.trim();
     if (!baseUrl || !apiKey || apiKey.length < 8) return;
     if (!/^https?:\/\//.test(baseUrl)) return;
 
-    const key = baseUrl + '|' + apiKey.length + ':' + apiKey.slice(-4);
+    const key = protocol + '|' + baseUrl + '|' + apiKey.length + ':' + apiKey.slice(-4);
     if (key === lastKey) return; // already probed this combo
     lastKey = key;
 
@@ -164,18 +170,21 @@
       return;
     }
     if (r.status === 429) {
-      // Rate limited — surface clearly and keep submit enabled so the user
-      // can still proceed (they're not blocked from detection itself).
       setPill('warn', '⚠ ' + (data.error || (i18n.probe_rate_limited || 'Probe rate limited, try again later')) + ' (' + (i18n.probe_can_continue || 'detection can continue') + ')');
-      lastKey = null; // allow retry after backoff
+      lastKey = null;
       return;
     }
-    renderProbeResult(data);
+    renderProbeResult(data, protocol);
   }
 
-  function renderProbeResult(data) {
+  window.veridropRunProbe = function () {
+    lastKey = null;
+    runProbe();
+  };
+
+  function renderProbeResult(data, protocol) {
+    const protoLabel = {anthropic: 'Claude', openai: 'OpenAI', gemini: 'Gemini'}[protocol] || protocol;
     if (!data.ok) {
-      // Auth fail vs other errors — auth_ok=false is the only blocking case
       if (data.auth_ok === false) {
         setPill('fail', '🔴 ' + (data.error || (i18n.auth_failed || 'Authentication failed')));
       } else {
@@ -193,7 +202,6 @@
     const total = data.raw_count || 0;
 
     if (myModels.length === 0) {
-      // The headline case: cross-protocol suggestion.
       const others = Object.keys(data.by_protocol || {})
         .filter((p) => p !== protocol && data.by_protocol[p].length > 0)
         .map((p) => ({proto: p, count: data.by_protocol[p].length, sample: data.by_protocol[p][0]}));
@@ -213,13 +221,11 @@
         html += '</div>';
       }
       setPillHtml('warn', html);
-      bindHandoff();
-      // Disable submit — running detection here will produce 0% report.
+      bindHandoff(protocol);
       setSubmitEnabled(false, protoLabel + ': ' + (i18n.models_unavailable || 'This relay does not expose /v1/models'));
       return;
     }
 
-    // Happy path: at least one model matches our protocol.
     const sample = myModels.slice(0, 4).join(', ');
     const more = myModels.length > 4 ? ` +${myModels.length - 4}` : '';
     setPillHtml(
@@ -228,23 +234,12 @@
       '<div class="probe-detail">' + escapeHtml(sample) + escapeHtml(more) + '</div>'
     );
 
-    // Replace the dropdown with what the relay actually carries.
     if (window.veridropSetModelChoices) {
       window.veridropSetModelChoices(myModels);
     }
     setSubmitEnabled(true);
-
-    // Stash best_by_protocol globally — the submit handler reads it when
-    // preflight 422s so it can offer a one-click swap to the recommended
-    // model.
     window.veridropBestByProtocol = data.best_by_protocol || {};
 
-    // If the user-typed model isn't in the list, auto-correct to the
-    // protocol-preferred default rather than whatever sorts first
-    // alphabetically. The backend computes "best" via each protocol's
-    // pick_default_model — for OpenAI that's gpt-4o-mini, for Gemini it's
-    // gemini-2.5-flash, etc. — so a /gemini → /openai handoff lands on a
-    // sensible model instead of e.g. gpt-3.5-turbo or some preview SKU.
     const best = (data.best_by_protocol && data.best_by_protocol[protocol]) || myModels[0];
     if (modelInput && modelInput.value.trim() && !myModels.includes(modelInput.value.trim())) {
       modelInput.value = best;
@@ -269,17 +264,24 @@
     btn.title = ok ? '' : (reason || '');
   }
 
-  function bindHandoff() {
+  function bindHandoff(currentProto) {
     pill.querySelectorAll('[data-handoff]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-handoff');
+        if (detectForm && detectForm.dataset.pelicanStandalone === 'true') {
+          const protoBtn = document.querySelector('.proto-switch-btn[data-pelican-proto="' + target + '"]');
+          if (protoBtn) {
+            protoBtn.click();
+            return;
+          }
+        }
         try {
           sessionStorage.setItem('veridrop:handoff', JSON.stringify({
             base_url: baseUrlInput.value.trim(),
             api_key: apiKeyInput.value.trim(),
-            from: protocol,
+            from: currentProto,
           }));
-        } catch (_) { /* sessionStorage unavailable — page navigates anyway */ }
+        } catch (_) { /* sessionStorage unavailable */ }
         location.href = protoPath[target];
       });
     });
@@ -291,15 +293,12 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // Trigger probe on api_key blur. Also re-probe when base_url changes
-  // (after blur) so users editing both fields don't miss a re-check.
   apiKeyInput.addEventListener('blur', runProbe);
   baseUrlInput.addEventListener('blur', () => {
-    lastKey = null; // base changed → invalidate dedup
+    lastKey = null;
     runProbe();
   });
 
-  // One-click preset fill (e.g. "Use clodex.xyz")
   document.querySelectorAll('.preset-btn[data-preset-url]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const presetUrl = btn.getAttribute('data-preset-url');
@@ -319,9 +318,6 @@
     });
   });
 
-  // Cross-protocol handoff: if we landed here from another protocol page,
-  // pre-fill the form and immediately probe. Single-shot — clear after read
-  // so a refresh doesn't reuse the key.
   try {
     const raw = sessionStorage.getItem('veridrop:handoff');
     if (raw) {
@@ -332,11 +328,10 @@
         apiKeyInput.value = data.api_key;
         const fromLabel = {anthropic: 'Claude', openai: 'OpenAI', gemini: 'Gemini'}[data.from] || data.from;
         setPill('neutral', '🔄 ' + (i18n.notice || 'Loaded credentials from {label} page, reprobing...').replace('{label}', fromLabel));
-        // Defer so the page paints first
         setTimeout(runProbe, 50);
       }
     }
-  } catch (_) { /* malformed handoff — ignore */ }
+  } catch (_) { /* malformed handoff */ }
 })();
 
 
@@ -346,6 +341,16 @@
   const submitBtn = document.getElementById('submit-btn');
   const errBox = document.getElementById('form-error');
   const i18n = window.__veridropI18n || {};
+  const isStandalonePelican = form.dataset.pelicanStandalone === 'true';
+  let activeTab = isStandalonePelican ? 'pelican' : 'audit';
+
+  function currentProtocol() {
+    return form.getAttribute('data-protocol')
+      || (location.pathname.startsWith('/claude') ? 'anthropic'
+        : location.pathname.startsWith('/openai') ? 'openai'
+        : location.pathname.startsWith('/gemini') ? 'gemini'
+        : 'anthropic');
+  }
 
   function endpointFor() {
     return form.getAttribute('data-endpoint')
@@ -358,14 +363,212 @@
         : '/api/detect');
   }
 
-  function currentProtocol() {
-    return location.pathname.startsWith('/claude') ? 'anthropic' :
-           location.pathname.startsWith('/openai') ? 'openai' :
-           location.pathname.startsWith('/gemini') ? 'gemini' : null;
+  function setTab(tab, updateUrl) {
+    if (isStandalonePelican) return;
+    activeTab = tab === 'pelican' ? 'pelican' : 'audit';
+    form.dataset.activeTab = activeTab;
+    document.querySelectorAll('.check-tab-btn[data-check-tab]').forEach((btn) => {
+      const on = btn.getAttribute('data-check-tab') === activeTab;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    form.querySelectorAll('[data-audit-only="true"]').forEach((el) => {
+      el.hidden = activeTab === 'pelican';
+    });
+    form.querySelectorAll('[data-pelican-only="true"]').forEach((el) => {
+      el.hidden = activeTab !== 'pelican';
+    });
+    if (submitBtn && !submitBtn.disabled) {
+      submitBtn.textContent = activeTab === 'pelican'
+        ? (i18n.draw_pelican || 'Draw Pelican (SVG)')
+        : (i18n.start_detection || 'Start check');
+    }
+    if (updateUrl && history.replaceState) {
+      const url = new URL(location.href);
+      if (activeTab === 'pelican') {
+        url.searchParams.set('tab', 'pelican');
+      } else {
+        url.searchParams.delete('tab');
+      }
+      history.replaceState(null, '', url.toString());
+    }
+  }
+
+  const tabBtns = document.querySelectorAll('.check-tab-btn[data-check-tab]');
+  if (tabBtns.length) {
+    tabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setTab(btn.getAttribute('data-check-tab'), true);
+      });
+    });
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === 'pelican' || location.hash === '#pelican') {
+      setTab('pelican', false);
+    } else {
+      setTab('audit', false);
+    }
+  }
+
+  // Standalone /pelican protocol switcher (Claude / OpenAI / Gemini)
+  const protoSwitchBtns = document.querySelectorAll('.proto-switch-btn[data-pelican-proto]');
+  if (protoSwitchBtns.length) {
+    const protoHidden = document.getElementById('pelican_protocol');
+    const presetBtn = document.getElementById('pelican-preset-btn');
+    const baseUrlInput = document.getElementById('base_url');
+    const modelInput = document.getElementById('model');
+
+    protoSwitchBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const proto = btn.getAttribute('data-pelican-proto');
+        const defUrl = btn.getAttribute('data-default-url') || '';
+        const defModel = btn.getAttribute('data-default-model') || '';
+
+        protoSwitchBtns.forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        form.setAttribute('data-protocol', proto);
+        if (protoHidden) protoHidden.value = proto;
+        if (presetBtn) {
+          presetBtn.setAttribute('data-preset-url', defUrl);
+          presetBtn.setAttribute('data-preset-model', defModel);
+        }
+        if (baseUrlInput) {
+          baseUrlInput.placeholder = defUrl;
+          // Auto-adjust clodex.xyz root <-> /v1 if user already filled clodex.xyz
+          const cur = baseUrlInput.value.trim().replace(/\/+$/, '');
+          if (cur === 'https://clodex.xyz' || cur === 'https://clodex.xyz/v1') {
+            baseUrlInput.value = defUrl;
+          }
+        }
+        if (modelInput) {
+          modelInput.value = defModel;
+          modelInput.placeholder = defModel;
+        }
+        const map = window.__pelicanModelsByProtocol || {};
+        if (window.veridropSetModelChoices && Array.isArray(map[proto])) {
+          window.veridropSetModelChoices(map[proto]);
+        }
+        if (submitBtn) submitBtn.disabled = false;
+        if (window.veridropRunProbe) window.veridropRunProbe();
+      });
+    });
+  }
+
+  // Light / Dark canvas toggle on inline pelican result
+  const inlineBgBtn = document.getElementById('pelican-inline-bg-btn');
+  const inlineStage = document.getElementById('pelican-inline-stage');
+  if (inlineBgBtn && inlineStage) {
+    inlineBgBtn.addEventListener('click', () => {
+      const isDark = inlineStage.classList.toggle('is-dark');
+      inlineBgBtn.textContent = isDark
+        ? (i18n.pelican_light_bg || 'Light canvas')
+        : (i18n.pelican_dark_bg || 'Dark canvas');
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function renderPelicanInline(data) {
+    const box = document.getElementById('pelican-inline-result');
+    if (!box) {
+      if (data.result_url) location.href = data.result_url;
+      return;
+    }
+    const p = data.pelican || {};
+    const perf = data.performance || {};
+    const usage = perf.usage || {};
+    const sa = perf.stream_analysis || {};
+
+    const titleEl = document.getElementById('pelican-res-title');
+    const metaEl = document.getElementById('pelican-res-meta');
+    const stageEl = document.getElementById('pelican-inline-stage');
+    const imgEl = document.getElementById('pelican-inline-img');
+    const emptyEl = document.getElementById('pelican-inline-empty');
+    const statsEl = document.getElementById('pelican-inline-stats');
+    const metricsEl = document.getElementById('pelican-inline-metrics');
+    const dlEl = document.getElementById('pelican-inline-svg-dl');
+    const cmpEl = document.getElementById('pelican-inline-compare');
+    const repEl = document.getElementById('pelican-inline-report');
+
+    if (titleEl) {
+      titleEl.textContent = (data.model || 'Model') + ' · ' + Math.round(Number(p.score || data.total_score || 0)) + '/100';
+    }
+    if (metaEl) {
+      metaEl.textContent = (data.base_url || '') + ' · ' + (data.protocol || '');
+    }
+    if (repEl && data.result_url) repEl.href = data.result_url;
+    if (cmpEl && data.compare_url) cmpEl.href = data.compare_url;
+
+    if (p.valid_svg && p.svg_b64) {
+      if (imgEl) imgEl.src = 'data:image/svg+xml;base64,' + p.svg_b64;
+      if (stageEl) stageEl.hidden = false;
+      if (emptyEl) emptyEl.hidden = true;
+      if (dlEl && data.svg_url) {
+        dlEl.href = data.svg_url;
+        dlEl.setAttribute('download', 'clodex-pelican-' + (data.job_id || 'svg') + '.svg');
+        dlEl.hidden = false;
+      }
+      if (inlineBgBtn) inlineBgBtn.hidden = false;
+    } else {
+      if (stageEl) stageEl.hidden = true;
+      if (dlEl) dlEl.hidden = true;
+      if (inlineBgBtn) inlineBgBtn.hidden = true;
+      if (emptyEl) {
+        emptyEl.hidden = false;
+        const reason = data.error || p.reason || '';
+        emptyEl.innerHTML = '<strong>' + escapeHtml(i18n.pelican_invalid || 'Model did not return a valid SVG') + '</strong>' +
+          (reason ? '<p class="muted small">' + escapeHtml(reason) + '</p>' : '');
+      }
+    }
+
+    if (statsEl) {
+      const pills = [
+        '<span>' + escapeHtml(i18n.pelican_score || 'Score') + ': <strong>' + Math.round(Number(p.score || 0)) + '/100</strong></span>',
+        '<span>' + escapeHtml(i18n.pelican_shapes || 'Shapes') + ': <strong>' + Number(p.primitive_count || 0) + '</strong></span>',
+        '<span>' + escapeHtml(i18n.pelican_colors || 'Colors') + ': <strong>' + Number(p.unique_colors || 0) + '</strong></span>',
+        '<span>' + escapeHtml(i18n.pelican_size || 'SVG size') + ': <strong>' + Number(p.svg_bytes || 0).toLocaleString() + ' B</strong></span>',
+      ];
+      if (p.view_box) {
+        pills.push('<span>viewBox: <code>' + escapeHtml(p.view_box) + '</code></span>');
+      }
+      statsEl.innerHTML = pills.map((h) => '<span class="hub-pill">' + h + '</span>').join('');
+    }
+
+    if (metricsEl) {
+      const ttftText = perf.ttft_ms != null ? Number(perf.ttft_ms).toLocaleString() + 'ms' : '—';
+      const latText = perf.total_latency_ms != null ? Number(perf.total_latency_ms).toLocaleString() + 'ms' : '—';
+      let tpsVal = perf.tokens_per_second;
+      if (!tpsVal && usage.output_tokens && perf.total_latency_ms) {
+        tpsVal = (usage.output_tokens * 1000.0) / perf.total_latency_ms;
+      }
+      const tpsText = tpsVal ? Number(tpsVal).toFixed(1) : '—';
+      let streamSub = '';
+      if (sa.verdict === 'real_stream') {
+        streamSub = '<div class="metric-sub is-ok">' + escapeHtml(i18n.stream_real || 'True stream') + ' · ' + Number(sa.chunk_count || 0) + ' ch</div>';
+      } else if (sa.verdict === 'buffered_burst') {
+        streamSub = '<div class="metric-sub is-warn">' + escapeHtml(i18n.stream_buffered || '⚠ Buffered burst') + '</div>';
+      } else if (sa.verdict === 'short_stream') {
+        streamSub = '<div class="metric-sub">' + escapeHtml(i18n.stream_short || 'Short stream') + '</div>';
+      }
+      const outTok = usage.output_tokens ? Number(usage.output_tokens).toLocaleString() : '—';
+      metricsEl.innerHTML =
+        '<div class="metric"><div class="metric-label">' + escapeHtml(i18n.metric_ttft || 'First token') + '</div><div class="metric-value">' + ttftText + '</div></div>' +
+        '<div class="metric' + (sa.verdict === 'buffered_burst' ? ' metric-warn' : '') + '"><div class="metric-label">' + escapeHtml(i18n.metric_tps || 'Throughput (T/s)') + '</div><div class="metric-value">' + tpsText + '</div>' + streamSub + '</div>' +
+        '<div class="metric"><div class="metric-label">' + escapeHtml(i18n.metric_latency || 'Total latency') + '</div><div class="metric-value">' + latText + '</div></div>' +
+        '<div class="metric"><div class="metric-label">' + escapeHtml(i18n.metric_output || 'Output tokens') + '</div><div class="metric-value">' + outTok + '</div></div>';
+    }
+
+    box.hidden = false;
+    box.scrollIntoView({behavior: 'smooth', block: 'start'});
   }
 
   function renderModelDeadError(detail) {
-    // Backend returns: {code, message, model, protocol, upstream_error}
     const proto = currentProtocol();
     const recommended = (window.veridropBestByProtocol || {})[proto];
     const dead = detail.model || 'model';
@@ -398,7 +601,6 @@
         if (modelInput) modelInput.value = recommended;
         errBox.hidden = true;
         errBox.classList.remove('form-error-rich');
-        // Clear force flag if it was set by previous click.
         const force = form.querySelector('input[name="force"]');
         if (force) force.value = '';
         form.requestSubmit();
@@ -412,8 +614,6 @@
     forceBtn.textContent = i18n.force_submit || 'I understand, force submit';
     forceBtn.title = i18n.force_submit_title || 'Preflight can occasionally be wrong. If the model is truly dead, forced detection will produce an error report.';
     forceBtn.addEventListener('click', () => {
-      // Append a hidden force=1 field; the detect routes skip preflight when
-      // it's set.
       let force = form.querySelector('input[name="force"]');
       if (!force) {
         force = document.createElement('input');
@@ -435,6 +635,41 @@
     ev.preventDefault();
     errBox.hidden = true;
     errBox.classList.remove('form-error-rich');
+
+    if (isStandalonePelican || activeTab === 'pelican') {
+      submitBtn.disabled = true;
+      const startedAt = Date.now();
+      const baseLabel = i18n.drawing_pelican || 'Drawing pelican…';
+      submitBtn.textContent = baseLabel + ' 0.0s';
+      const timer = setInterval(() => {
+        const sec = ((Date.now() - startedAt) / 1000).toFixed(1);
+        submitBtn.textContent = baseLabel + ' ' + sec + 's';
+      }, 200);
+
+      const fd = new FormData();
+      fd.set('protocol', currentProtocol());
+      fd.set('base_url', (document.getElementById('base_url') || {}).value || '');
+      fd.set('api_key', (document.getElementById('api_key') || {}).value || '');
+      fd.set('model', (document.getElementById('model') || {}).value || '');
+      try {
+        const r = await fetch('/api/pelican', {method: 'POST', body: fd});
+        const j = await r.json().catch(() => ({detail: 'request failed'}));
+        if (!r.ok) {
+          const msg = typeof j.detail === 'string' ? j.detail : ('HTTP ' + r.status);
+          throw new Error(msg);
+        }
+        renderPelicanInline(j);
+      } catch (e) {
+        errBox.hidden = false;
+        errBox.textContent = e.message || (i18n.submit_failed || 'Submission failed');
+      } finally {
+        clearInterval(timer);
+        submitBtn.disabled = false;
+        submitBtn.textContent = i18n.draw_pelican || 'Draw Pelican (SVG)';
+      }
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = i18n.detecting || 'Detecting...';
 
@@ -459,7 +694,6 @@
       }
       const j = await r.json();
       form.api_key.value = '';
-      // Clear force flag so a subsequent submission goes through preflight.
       const force = form.querySelector('input[name="force"]');
       if (force) force.value = '';
       location.href = '/r/' + j.job_id;

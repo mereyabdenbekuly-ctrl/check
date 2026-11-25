@@ -27,7 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v6" />
+  <link rel="stylesheet" href="/static/style.css?v=20261125-dark-v7" />
   {% block head_extra %}{% endblock %}
   <script>
     window.__veridropUi = {{ ui | tojson }};
@@ -60,6 +60,22 @@
       "force_submit": lt(locale, "Понимаю, отправить принудительно", "I understand, force submit", "我知道,强制提交"),
       "force_submit_title": lt(locale, "Preflight иногда ошибается. При принудительной отправке недоступная модель даст ошибочный отчёт.", "Preflight can occasionally be wrong. If the model is truly dead, forced detection will produce an error report.", "preflight 偶尔会误判。强制提交后,如果模型真不可用,检测会以错误结果呈现。"),
       "start_detection": lt(locale, "Начать проверку", "Start check", "开始检测"),
+      "draw_pelican": lt(locale, "Нарисовать пеликана (SVG)", "Draw Pelican (SVG)", "生成鹈鹕骑车 SVG"),
+      "drawing_pelican": lt(locale, "Рисуем пеликана…", "Drawing pelican…", "正在生成 SVG…"),
+      "pelican_dark_bg": lt(locale, "Тёмный фон", "Dark canvas", "深色背景"),
+      "pelican_light_bg": lt(locale, "Светлый фон", "Light canvas", "浅色背景"),
+      "pelican_score": lt(locale, "Оценка", "Score", "评分"),
+      "pelican_shapes": lt(locale, "Фигур", "Shapes", "图元数"),
+      "pelican_colors": lt(locale, "Цветов", "Colors", "颜色数"),
+      "pelican_size": lt(locale, "Размер SVG", "SVG size", "SVG 大小"),
+      "pelican_invalid": lt(locale, "Модель не вернула валидный SVG", "Model did not return a valid SVG", "模型未返回有效 SVG"),
+      "metric_ttft": lt(locale, "Первый токен", "First token", "首 TOKEN"),
+      "metric_tps": lt(locale, "Скорость (T/s)", "Throughput (T/s)", "吞吐 (T/S)"),
+      "metric_latency": lt(locale, "Общее время", "Total latency", "总耗时"),
+      "metric_output": lt(locale, "Выход (tokens)", "Output tokens", "输出 TOKENS"),
+      "stream_real": lt(locale, "Реальный стрим", "True stream", "真流式"),
+      "stream_buffered": lt(locale, "⚠ Буферизованный", "⚠ Buffered burst", "⚠ 疑似假流式"),
+      "stream_short": lt(locale, "Короткий стрим", "Short stream", "短流式"),
       "switch_protocol": lt(locale, "Переключиться на {label}", "Switch to {label}", "切换到 {label}"),
       "probe_failed": lt(locale, "Предпроверка не удалась", "Probe failed", "预探测失败"),
       "probe_rate_limited": lt(locale, "Слишком частые запросы, повторите позже", "Too many probes, retry later", "探测过于频繁,请稍后再试"),
@@ -93,6 +109,7 @@
           <a href="{{ with_lang('/claude', locale) }}" class="{% if cur_path.startswith('/claude') %}is-active{% endif %}">{{ ui.nav_claude }}</a>
           <a href="{{ with_lang('/openai', locale) }}" class="{% if cur_path.startswith('/openai') %}is-active{% endif %}">{{ ui.nav_openai }}</a>
           <a href="{{ with_lang('/gemini', locale) }}" class="{% if cur_path.startswith('/gemini') %}is-active{% endif %}">{{ ui.nav_gemini }}</a>
+          <a href="{{ with_lang('/pelican', locale) }}" class="{% if cur_path.startswith('/pelican') %}is-active{% endif %}">{{ ui.nav_pelican }}</a>
           <a href="{{ with_lang('/compare', locale) }}" class="{% if cur_path.startswith('/compare') %}is-active{% endif %}">{{ ui.nav_compare }}</a>
           <a href="{{ with_lang('/faq', locale) }}" class="{% if cur_path.startswith('/faq') %}is-active{% endif %}">{{ ui.nav_faq }}</a>
         </div>
@@ -149,6 +166,7 @@
           <li><a href="{{ with_lang('/claude', locale) }}">{{ ui.nav_claude }}</a></li>
           <li><a href="{{ with_lang('/openai', locale) }}">{{ ui.nav_openai }}</a></li>
           <li><a href="{{ with_lang('/gemini', locale) }}">{{ ui.nav_gemini }}</a></li>
+          <li><a href="{{ with_lang('/pelican', locale) }}">{{ ui.nav_pelican }}</a></li>
           <li><a href="{{ with_lang('/compare', locale) }}">{{ ui.nav_compare }}</a></li>
           <li><a href="{{ with_lang('/faq', locale) }}">{{ ui.footer_faq }}</a></li>
         </ul>
@@ -176,6 +194,6 @@
       </a>
     </p>
   </footer>
-  <script src="/static/app.js?v=20261125-clodex-v2" defer></script>
+  <script src="/static/app.js?v=20261125-clodex-v3" defer></script>
 </body>
 </html>

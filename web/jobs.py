@@ -28,6 +28,7 @@ from relay_detector.models import (
     Protocol,
     mask_api_key,
 )
+from relay_detector.core.stream_metrics import summarize_stream_samples
 from relay_detector.scorer import (
     compute_total,
     effective_verdict,
@@ -585,3 +586,129 @@ async def _run_gemini(
     async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
         return await runner.run(model, on_event=_CURRENT_ON_EVENT.get())
+
+
+async def _execute_pelican_detector(
+    base_url: str,
+    api_key: str,
+    model: str,
+    protocol: str,
+    timeout_s: float = 95.0,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run ONLY the streamed PelicanSVGDetector and capture live stream metrics."""
+    started = time.perf_counter()
+    if protocol == "openai":
+        from relay_detector.protocols.openai import make_client
+        from relay_detector.protocols.openai.client import ThrottledOpenAIClient
+        from relay_detector.protocols.openai.detectors.pelican_svg import PelicanSVGDetector
+
+        async with make_client(base_url, api_key, timeout=timeout_s) as base_client:
+            client = ThrottledOpenAIClient(base_client, max_concurrent=1)
+            res = await PelicanSVGDetector().run(client, model)
+            elapsed_ms = int((time.perf_counter() - started) * 1000)
+            ttft_ms = min(client._ttft_samples_ms) if client._ttft_samples_ms else None
+            tps, stream_analysis = summarize_stream_samples(client._stream_samples)
+            usage = client.total_usage.model_dump()
+    elif protocol == "gemini":
+        from relay_detector.protocols.gemini import make_client
+        from relay_detector.protocols.gemini.client import ThrottledGeminiClient
+        from relay_detector.protocols.gemini.detectors.pelican_svg import PelicanSVGDetector
+
+        async with make_client(base_url, api_key, timeout=timeout_s) as base_client:
+            client = ThrottledGeminiClient(base_client, max_concurrent=1)
+            res = await PelicanSVGDetector().run(client, model)
+            elapsed_ms = int((time.perf_counter() - started) * 1000)
+            ttft_ms = min(client._ttft_samples_ms) if client._ttft_samples_ms else None
+            tps, stream_analysis = summarize_stream_samples(client._stream_samples)
+            usage = client.total_usage.model_dump()
+    else:
+        from relay_detector.protocols.anthropic import make_client
+        from relay_detector.protocols.anthropic.client import ThrottledClient
+        from relay_detector.protocols.anthropic.detectors.pelican_svg import PelicanSVGDetector
+
+        async with make_client(base_url, api_key, timeout=timeout_s) as base_client:
+            client = ThrottledClient(base_client, max_concurrent=1)
+            res = await PelicanSVGDetector().run(client, model)
+            elapsed_ms = int((time.perf_counter() - started) * 1000)
+            ttft_ms = min(client._ttft_samples_ms) if client._ttft_samples_ms else None
+            tps, stream_analysis = summarize_stream_samples(client._stream_samples)
+            usage = client.total_usage.model_dump()
+
+    res.duration_ms = elapsed_ms
+    perf = {
+        "total_latency_ms": elapsed_ms,
+        "ttft_ms": ttft_ms,
+        "tokens_per_second": tps,
+        "stream_analysis": stream_analysis,
+        "request_count": 1,
+        "backoff_events": 0,
+        "usage": usage,
+    }
+    return json.loads(res.model_dump_json()), perf
+
+
+async def run_pelican(
+    base_url: str,
+    api_key: str,
+    model: str,
+    protocol: str = "anthropic",
+) -> tuple[str, dict[str, Any]]:
+    """Run a standalone Pelican-on-a-bicycle SVG check and persist a shareable report.
+
+    API keys are NEVER written to disk or returned in the report payload.
+    """
+    proto = protocol if protocol in {"anthropic", "openai", "gemini"} else "anthropic"
+    async with _SEMA:
+        result_dict, perf = await _execute_pelican_detector(base_url, api_key, model, proto)
+
+    score = float(result_dict.get("score") or 0.0)
+    status = str(result_dict.get("status") or "fail")
+    if status == "pass":
+        verdict = "passed"
+    elif score >= 60.0:
+        verdict = "marginal"
+    else:
+        verdict = "failed"
+
+    job_id = _new_job_id()
+    report_dict: dict[str, Any] = {
+        "protocol": proto,
+        "tier": "visual",
+        "tier_title": "Пеликан-тест (SVG)",
+        "tier_message": (
+            "Отдельный визуальный бенчмарк Симона Уиллисона (пеликан на велосипеде в SVG) "
+            "с замером TTFT, реальной скорости потока tok/s и проверкой стриминга."
+        ),
+        "base_url": base_url,
+        "api_key_masked": mask_api_key(api_key),
+        "target_model": model,
+        "mode": "pelican",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_score": score,
+        "verdict": verdict,
+        "results": [result_dict],
+        "performance": perf,
+        "summary": result_dict.get("error") or f"Pelican SVG score: {score:.0f}/100",
+        "run_error": result_dict.get("error") if status == "error" else None,
+        "self_reported_identity": None,
+        "detected_non_anthropic_brands": [],
+    }
+    report_path(job_id, proto).write_text(
+        json.dumps(report_dict, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    now = time.time()
+    async with _LOCK:
+        _JOBS[job_id] = Job(
+            id=job_id,
+            protocol=proto,
+            status="done",
+            base_url=base_url,
+            target_model=model,
+            mode="pelican",
+            created_at=now,
+            started_at=now,
+            finished_at=now,
+            report=report_dict,
+        )
+    return job_id, report_dict

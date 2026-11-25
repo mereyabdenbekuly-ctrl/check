@@ -171,6 +171,28 @@ async def gemini_index(request: Request) -> HTMLResponse:
     return _render(request, "gemini.html", models=_gemini_model_choices())
 
 
+@app.get("/pelican", response_class=HTMLResponse)
+async def pelican_page(request: Request, protocol: str = "anthropic") -> HTMLResponse:
+    from relay_detector.core.pelican import PELICAN_PROMPT
+
+    p = (protocol or "anthropic").strip().lower()
+    if p == "claude":
+        p = "anthropic"
+    if p not in {"anthropic", "openai", "gemini"}:
+        p = "anthropic"
+    return _render(
+        request,
+        "pelican.html",
+        initial_protocol=p,
+        models_by_protocol={
+            "anthropic": [m["id"] for m in _model_choices()],
+            "openai": [m["id"] for m in _openai_model_choices()],
+            "gemini": [m["id"] for m in _gemini_model_choices()],
+        },
+        pelican_prompt=PELICAN_PROMPT,
+    )
+
+
 _JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{3,40}$")
 
 
@@ -674,6 +696,64 @@ async def api_detect_gemini(
     return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
 
 
+@app.post("/api/pelican")
+async def api_pelican(
+    request: Request,
+    protocol: str = Form("anthropic"),
+    base_url: str = Form(...),
+    api_key: str = Form(...),
+    model: str = Form(...),
+) -> JSONResponse:
+    """Run the standalone Pelican-on-a-bicycle SVG test (single streamed call)."""
+    ip = _client_ip(request)
+    allowed, retry_after = check_rate(ip, limit=20, window_s=60.0)
+    if not allowed:
+        wait = int(retry_after) + 1
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many Pelican requests, retry in {wait}s",
+            headers={"Retry-After": str(wait)},
+        )
+
+    proto = (protocol or "anthropic").strip().lower()
+    if proto == "claude":
+        proto = "anthropic"
+    if proto not in {"anthropic", "openai", "gemini"}:
+        raise HTTPException(status_code=400, detail="protocol must be anthropic, openai, or gemini")
+
+    base_url = base_url.strip()
+    api_key = api_key.strip()
+    model = model.strip()
+
+    if not base_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="base_url must start with http(s)://")
+    if not api_key or len(api_key) < 8:
+        raise HTTPException(status_code=400, detail="api_key looks invalid")
+    if not model or len(model) > 200:
+        raise HTTPException(status_code=400, detail="model must be 1–200 chars")
+
+    job_id, report = await jobs.run_pelican(base_url, api_key, model, protocol=proto)
+    pelican = _pelican_preview(report) or {}
+    pelican_public = {k: v for k, v in pelican.items() if k != "svg_raw"}
+    # NOTE: never echo api_key back in the response
+    return JSONResponse({
+        "ok": bool(pelican_public.get("valid_svg")),
+        "job_id": job_id,
+        "protocol": proto,
+        "model": model,
+        "base_url": base_url,
+        "total_score": report.get("total_score", 0.0),
+        "verdict": report.get("verdict", "failed"),
+        "error": report.get("run_error"),
+        "pelican": pelican_public,
+        "performance": report.get("performance") or {},
+        "result_url": f"/r/{job_id}",
+        "svg_url": f"/r/{job_id}/pelican.svg",
+        "jpg_url": f"/r/{job_id}.jpg",
+        "compare_url": f"/compare?a={job_id}",
+    })
+
+
 @app.get("/api/status/{job_id}")
 async def api_status(job_id: str) -> JSONResponse:
     j = await jobs.get(job_id)
@@ -888,7 +968,16 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
             detector_list=detector_display(locale, proto),
         )
     protocol = str(j.report.get("protocol") or "anthropic")
-    tier_title, tier_message = tier_banner_for_locale(locale, protocol)
+    if j.report.get("mode") == "pelican":
+        tier_title = lt(locale, "Пеликан-тест (SVG)", "Pelican SVG Benchmark", "鹈鹕骑车 SVG 基准测试")
+        tier_message = lt(
+            locale,
+            "Отдельный визуальный бенчмарк Симона Уиллисона (пеликан на велосипеде в SVG) с замером TTFT, реальной скорости потока tok/s и проверкой стриминга.",
+            "Standalone Simon Willison visual SVG benchmark (pelican riding a bicycle) measuring TTFT, live streaming tok/s, and true vs. buffered streaming.",
+            "独立的 Simon Willison 视觉 SVG 基准测试（鹈鹕骑自行车），同步测量首字延迟 TTFT、真实流式 tok/s 与真/假流式判定。",
+        )
+    else:
+        tier_title, tier_message = tier_banner_for_locale(locale, protocol)
     crit_map = detector_criteria(locale, protocol)
     detector_defs = [
         {"label": label, "criteria": crit_map.get(key, "")}
@@ -948,6 +1037,7 @@ _STATIC_SITEMAP_URLS = [
     ("https://check.clodex.xyz/claude",      "weekly",  "0.9",  "index.html"),
     ("https://check.clodex.xyz/openai",      "weekly",  "0.9",  "openai.html"),
     ("https://check.clodex.xyz/gemini",      "weekly",  "0.9",  "gemini.html"),
+    ("https://check.clodex.xyz/pelican",     "weekly",  "0.9",  "pelican.html"),
     ("https://check.clodex.xyz/compare",     "weekly",  "0.8",  "compare.html"),
     ("https://check.clodex.xyz/faq",         "monthly", "0.8",  "faq.html"),
 ]
@@ -1065,8 +1155,11 @@ def _result_rows_for_locale(report: dict, locale: str) -> list[dict]:
     }
     out = []
     protocol = str(report.get("protocol") or "anthropic")
+    is_pelican_only = report.get("mode") == "pelican"
     display = detector_display(locale, protocol)
     for name, label in display:
+        if is_pelican_only and name not in by_name:
+            continue
         r = by_name.get(name) or {"status": "skip", "score": 0.0}
         status = str(r.get("status") or "skip")
         score = float(r.get("score") or 0.0)

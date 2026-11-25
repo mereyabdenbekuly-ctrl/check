@@ -1,0 +1,34 @@
+<section class="card pelican-card pelican-inline-card" id="pelican-inline-result" hidden>
+  <div class="pelican-head">
+    <div>
+      <span class="eyebrow eyebrow-success pelican-kicker">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        <span>{{ lt(locale, 'РЕЗУЛЬТАТ · ПЕЛИКАН НА ВЕЛОСИПЕДЕ (SVG)', 'RESULT · PELICAN ON A BICYCLE (SVG)', '检测结果 · 鹈鹕骑自行车 (SVG)') }}</span>
+      </span>
+      <h2 id="pelican-res-title">{{ lt(locale, 'Сгенерированный SVG', 'Generated SVG', '生成的 SVG') }}</h2>
+      <p class="muted small pelican-sub" id="pelican-res-meta"></p>
+    </div>
+    <div class="pelican-actions">
+      <button type="button" class="btn btn-secondary" id="pelican-inline-bg-btn">
+        {{ lt(locale, 'Тёмный фон', 'Dark canvas', '深色背景') }}
+      </button>
+      <a class="btn btn-secondary" id="pelican-inline-svg-dl" href="#" download>
+        {{ lt(locale, 'Скачать SVG', 'Download SVG', '下载 SVG') }}
+      </a>
+      <a class="btn btn-secondary" id="pelican-inline-compare" href="#">
+        {{ lt(locale, 'Сравнить A vs B', 'Compare A vs B', '并排对比') }}
+      </a>
+      <a class="btn btn-primary" id="pelican-inline-report" href="#">
+        {{ lt(locale, 'Постоянная ссылка ↗', 'Permanent report ↗', '永久报告链接 ↗') }}
+      </a>
+    </div>
+  </div>
+
+  <div class="pelican-stage" id="pelican-inline-stage">
+    <img class="pelican-img" id="pelican-inline-img" src="" alt="Pelican SVG" />
+  </div>
+  <div class="pelican-empty" id="pelican-inline-empty" hidden></div>
+
+  <div class="pelican-stats" id="pelican-inline-stats"></div>
+  <div class="metrics-row metrics-row-4 pelican-inline-metrics" id="pelican-inline-metrics"></div>
+</section>
